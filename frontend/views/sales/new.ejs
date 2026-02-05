@@ -1,0 +1,950 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <meta http-equiv="Content-Security-Policy" content="
+        default-src 'self';
+        script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net;
+        style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
+        font-src 'self' https://cdn.jsdelivr.net;
+        img-src 'self' data: https: http:;
+        connect-src 'self';
+    ">
+    <link rel="icon" type="image/x-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛒</text></svg>">
+    <title>POS - <%= typeof user !== 'undefined' && user && user.shopName ? user.shopName : 'Bireena Bakery' %></title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" crossorigin="anonymous">
+    <link rel="stylesheet" href="/css/pos.css">
+    <style>
+        /* Prevent loading spinner if resources fail */
+        body { opacity: 1 !important; }
+        .loading { display: none !important; }
+    </style>
+</head>
+<body>
+    <div class="pos-container">
+        <!-- Header -->
+        <div class="pos-header">
+            <div class="pos-header-left">
+                <% if (typeof user !== 'undefined' && user && user.role === 'staff') { %>
+                    <!-- Employee Menu Toggle with Dropdown -->
+                    <div class="menu-dropdown-container">
+                        <button class="menu-toggle" id="menuToggleBtn">
+                            <i class="bi bi-list"></i>
+                        </button>
+                        <div class="menu-dropdown" id="menuDropdown">
+                            <a href="/sales" class="menu-dropdown-item">
+                                <i class="bi bi-receipt"></i> Sales History
+                            </a>
+                            <a href="/reports" class="menu-dropdown-item">
+                                <i class="bi bi-bar-chart-fill"></i> Reports
+                            </a>
+                            <a href="/logout" class="menu-dropdown-item logout-item">
+                                <i class="bi bi-box-arrow-right"></i> Logout
+                            </a>
+                        </div>
+                    </div>
+                <% } else { %>
+                    <!-- Admin Menu Toggle with Dropdown -->
+                    <div class="menu-dropdown-container">
+                        <button class="menu-toggle" id="adminMenuToggleBtn">
+                            <i class="bi bi-list"></i>
+                        </button>
+                        <div class="menu-dropdown" id="adminMenuDropdown">
+                            <a href="/dashboard" class="menu-dropdown-item">
+                                <i class="bi bi-speedometer2"></i> Dashboard
+                            </a>
+                            <a href="/inventory" class="menu-dropdown-item">
+                                <i class="bi bi-box-seam"></i> Inventory
+                            </a>
+                            <a href="/sales" class="menu-dropdown-item">
+                                <i class="bi bi-receipt"></i> Sales History
+                            </a>
+                            <a href="/reports" class="menu-dropdown-item">
+                                <i class="bi bi-bar-chart-fill"></i> Reports
+                            </a>
+                            <a href="/employees" class="menu-dropdown-item">
+                                <i class="bi bi-people-fill"></i> Employees
+                            </a>
+                            <a href="/logout" class="menu-dropdown-item logout-item">
+                                <i class="bi bi-box-arrow-right"></i> Logout
+                            </a>
+                        </div>
+                    </div>
+                <% } %>
+                
+                <div class="table-tabs">
+                    <button class="table-tab active" data-table="1">PERS 1<br><small>₹<span id="table1-total">0.0</span></small></button>
+                    <button class="table-tab" data-table="2">PERS 2<br><small>₹<span id="table2-total">0.0</span></small></button>
+                    <button class="table-tab" data-table="3">PERS 3<br><small>₹<span id="table3-total">0.0</span></small></button>
+                    <button class="table-tab" data-table="4">PERS 4<br><small>₹<span id="table4-total">0.0</span></small></button>
+                    <button class="table-tab" data-table="5">PERS 5<br><small>₹<span id="table5-total">0.0</span></small></button>
+                    <button class="add-person-btn" id="addPersonBtn" onclick="addNewPerson()">
+                        <i class="bi bi-plus-circle"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="pos-header-right">
+                <button class="print-btn" onclick="openPrintModal()">
+                    <i class="bi bi-printer-fill"></i> PRINT
+                    <span class="total-display">₹<span id="header-total">0.0</span></span>
+                </button>
+                <button class="btn btn-outline-light btn-sm" onclick="window.location.href='/logout'">
+                    <i class="bi bi-box-arrow-right"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Body -->
+        <div class="pos-body">
+            <!-- Category Sidebar -->
+            <div class="category-sidebar">
+                <button class="new-category-btn">NEW<br>CATEGORY</button>
+                <div class="category-item active" data-category="all">
+                    <div class="category-name">ALL</div>
+                    <div class="category-count">(<%= products.length %>)</div>
+                </div>
+                <% 
+                const categories = {};
+                products.forEach(p => {
+                    const cat = p.category || 'Other';
+                    if (!categories[cat]) categories[cat] = 0;
+                    categories[cat]++;
+                });
+                Object.keys(categories).forEach(cat => { 
+                %>
+                    <div class="category-item" data-category="<%= cat %>">
+                        <div class="category-name"><%= cat.toUpperCase() %></div>
+                        <div class="category-count">(<%= categories[cat] %>)</div>
+                    </div>
+                <% }); %>
+            </div>
+
+            <!-- Products Area -->
+            <div class="products-area">
+                <div class="search-bar">
+                    <input type="text" class="search-input" id="productSearch" placeholder="Search item...">
+                </div>
+
+                <div class="products-grid" id="productsGrid">
+                    <% products.forEach(product => { %>
+                        <div class="product-card" 
+                             data-id="<%= product._id %>"
+                             data-name="<%= product.name %>"
+                             data-price="<%= product.price %>"
+                             data-stock="<%= product.stock %>"
+                             data-category="<%= product.category || 'Other' %>">
+                            <% if (product.image && product.image.trim() !== '') { %>
+                                <img src="<%= product.image %>" 
+                                     alt="<%= product.name %>" 
+                                     class="product-image"
+                                     loading="lazy"
+                                     onerror="this.onerror=null; this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                <div class="product-image product-image-fallback" style="display:none; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); align-items: center; justify-content: center; color: white; font-size: 24px; font-weight: bold;">
+                                    <%= product.name.substring(0,2).toUpperCase() %>
+                                </div>
+                            <% } else { %>
+                                <div class="product-image" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; color: white; font-size: 24px; font-weight: bold;">
+                                    <%= product.name.substring(0,2).toUpperCase() %>
+                                </div>
+                            <% } %>
+                            <div class="product-name"><%= product.name %></div>
+                            <div class="product-price-stock">
+                                <span class="product-price">₹<%= product.price.toFixed(1) %></span>
+                                <span class="product-stock <%= product.stock < 10 ? 'low' : '' %>">
+                                    Stock <%= product.stock.toFixed(1) %>
+                                </span>
+                            </div>
+                            <div class="quantity-controls" style="display:none;">
+                                <button class="qty-btn" onclick="event.stopPropagation(); decreaseQty(this)">-</button>
+                                <span class="qty-display" onclick="event.stopPropagation(); editQuantity(this)">0</span>
+                                <button class="qty-btn" onclick="event.stopPropagation(); increaseQty(this)">+</button>
+                            </div>
+                            <button class="remove-btn" style="display:none;" onclick="event.stopPropagation(); removeFromCart(this)">×</button>
+                        </div>
+                    <% }); %>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="pos-footer">
+            <div class="discount-section">
+                <label>Discount %</label>
+                <input type="number" class="discount-input" id="discountPercent" value="0" min="0" max="100" onchange="updateTotals()">
+            </div>
+            <button class="kot-btn">KOT/TOKEN</button>
+            <button class="preview-btn" onclick="openPrintModal()">PREVIEW</button>
+        </div>
+    </div>
+
+    <!-- Print Bill Modal -->
+    <div class="print-modal" id="printModal">
+        <div class="print-modal-content">
+            <div class="modal-header">
+                <h4>Print Bill</h4>
+                <button class="close-modal" onclick="closePrintModal()">×</button>
+            </div>
+
+            <div class="billing-type-tabs">
+                <button class="billing-type-tab active" data-type="basic">
+                    <i class="bi bi-circle-fill"></i> BASIC
+                </button>
+                <button class="billing-type-tab" data-type="advance">
+                    <i class="bi bi-circle"></i> ADVANCE
+                </button>
+            </div>
+
+            <div class="payment-buttons">
+                <button class="payment-btn active" data-payment="cash">CASH</button>
+                <button class="payment-btn" data-payment="upi">UPI</button>
+                <button class="payment-btn" data-payment="due">Due</button>
+            </div>
+
+            <form id="billForm" onsubmit="submitBill(event)">
+                <!-- B2B Advanced Fields (Hidden by default) -->
+                <div id="advanceFields" style="display: none;">
+                    <div class="form-group">
+                        <label>Invoice Type <span class="text-danger">*</span></label>
+                        <select class="form-control" name="invoiceType" id="invoiceType">
+                            <option value="B2B">B2B (Business to Business)</option>
+                            <option value="B2C">B2C (Business to Customer)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Customer GSTIN (Optional for B2B)</label>
+                        <input type="text" class="form-control" name="customerGSTIN" id="customerGSTIN" placeholder="Enter 15-digit GSTIN" maxlength="15">
+                        <small class="text-muted">Required for B2B invoices</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Customer Billing Address</label>
+                        <textarea class="form-control" name="billingAddress" id="billingAddress" rows="2" placeholder="Enter billing address"></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>State Code</label>
+                        <select class="form-control" name="stateCode" id="stateCode">
+                            <option value="">-- Select State --</option>
+                            <option value="01">01 - Jammu & Kashmir</option>
+                            <option value="02">02 - Himachal Pradesh</option>
+                            <option value="03">03 - Punjab</option>
+                            <option value="04">04 - Chandigarh</option>
+                            <option value="05">05 - Uttarakhand</option>
+                            <option value="06">06 - Haryana</option>
+                            <option value="07">07 - Delhi</option>
+                            <option value="08">08 - Rajasthan</option>
+                            <option value="09">09 - Uttar Pradesh</option>
+                            <option value="10">10 - Bihar</option>
+                            <option value="11">11 - Sikkim</option>
+                            <option value="12">12 - Arunachal Pradesh</option>
+                            <option value="13">13 - Nagaland</option>
+                            <option value="14">14 - Manipur</option>
+                            <option value="15">15 - Mizoram</option>
+                            <option value="16">16 - Tripura</option>
+                            <option value="17">17 - Meghalaya</option>
+                            <option value="18">18 - Assam</option>
+                            <option value="19">19 - West Bengal</option>
+                            <option value="20">20 - Jharkhand</option>
+                            <option value="21">21 - Odisha</option>
+                            <option value="22">22 - Chhattisgarh</option>
+                            <option value="23">23 - Madhya Pradesh</option>
+                            <option value="24">24 - Gujarat</option>
+                            <option value="26">26 - Dadra & Nagar Haveli and Daman & Diu</option>
+                            <option value="27">27 - Maharashtra</option>
+                            <option value="29">29 - Karnataka</option>
+                            <option value="30">30 - Goa</option>
+                            <option value="32">32 - Kerala</option>
+                            <option value="33">33 - Tamil Nadu</option>
+                            <option value="34">34 - Puducherry</option>
+                            <option value="35">35 - Andaman & Nicobar</option>
+                            <option value="36">36 - Telangana</option>
+                            <option value="37">37 - Andhra Pradesh</option>
+                            <option value="38">38 - Ladakh</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>HSN/SAC Code (Optional)</label>
+                        <input type="text" class="form-control" name="hsnCode" id="hsnCode" placeholder="Enter HSN/SAC code">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Customer Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="customerNameAdvance" id="customerNameAdvance" placeholder="Enter customer name">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Mobile Number <span class="text-danger">*</span></label>
+                        <input type="tel" class="form-control" name="customerPhoneAdvance" id="customerPhoneAdvance" placeholder="Enter mobile number" maxlength="10">
+                    </div>
+                </div>
+
+                <!-- Basic Fields (Visible by default) -->
+                <div id="basicFields">
+                    <div class="form-group">
+                        <label>Customer Name (optional)</label>
+                        <input type="text" class="form-control" name="customerName" placeholder="Enter customer name">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Mobile Number (optional)</label>
+                        <input type="tel" class="form-control" name="customerPhone" placeholder="Enter mobile number" maxlength="10">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Amount Paid</label>
+                    <input type="number" class="form-control" name="amountPaid" id="amountPaid" step="0.01" min="0" placeholder="Enter amount paid" onchange="calculateDue()">
+                    <small class="text-muted">Leave empty for full payment or enter partial amount</small>
+                </div>
+
+                <div class="form-group" id="dueDisplay" style="display:none;">
+                    <div class="alert alert-warning">
+                        <strong>Due Amount:</strong> ₹<span id="dueAmount">0.0</span>
+                    </div>
+                </div>
+
+                <div class="whatsapp-checkbox">
+                    <input type="checkbox" id="whatsappShare" name="whatsappShare">
+                    <label for="whatsappShare">
+                        <i class="bi bi-whatsapp" style="color: #25D366;"></i>
+                        Share bill on whatsapp
+                    </label>
+                </div>
+
+                <div class="cart-summary">
+                    <div id="modalCartItems"></div>
+                    <div class="cart-total">
+                        <span>Total:</span>
+                        <span>₹<span id="modalTotal">0.0</span></span>
+                    </div>
+                </div>
+
+                <input type="hidden" name="items" id="billItems">
+                <input type="hidden" name="paymentMethod" id="paymentMethod" value="cash">
+                <input type="hidden" name="discount" id="billDiscount">
+                <input type="hidden" name="discountType" value="percentage">
+
+                <button type="submit" class="print-bill-btn">PRINT BILL</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous" onerror="console.warn('Bootstrap JS failed to load')"></script>
+    <script>
+        // Prevent page from getting stuck in loading state
+        window.addEventListener('DOMContentLoaded', function() {
+            console.log('✅ POS page loaded successfully');
+            document.body.style.opacity = '1';
+        });
+
+        // Handle failed image loads gracefully
+        document.addEventListener('error', function(e) {
+            if (e.target.tagName === 'IMG') {
+                console.warn('Image failed to load:', e.target.src);
+                e.target.style.display = 'block';
+            }
+        }, true);
+
+        // Cart state management - Individual carts for each person
+        let carts = {
+            1: {},
+            2: {},
+            3: {},
+            4: {},
+            5: {}
+        };
+        let currentTable = 1;
+        let maxPersons = 5;
+        let cart = carts[currentTable]; // Reference to current cart
+
+        // Add new person function
+        function addNewPerson() {
+            maxPersons++;
+            carts[maxPersons] = {};
+            
+            // Create new tab button
+            const tabsContainer = document.querySelector('.table-tabs');
+            const addBtn = document.getElementById('addPersonBtn');
+            
+            const newTab = document.createElement('button');
+            newTab.className = 'table-tab';
+            newTab.dataset.table = maxPersons;
+            newTab.innerHTML = `PERS ${maxPersons}<br><small>₹<span id="table${maxPersons}-total">0.0</span></small>`;
+            
+            // Insert before the add button
+            tabsContainer.insertBefore(newTab, addBtn);
+            
+            // Add click listener to new tab
+            newTab.addEventListener('click', function() {
+                document.querySelectorAll('.table-tab').forEach(t => t.classList.remove('active'));
+                this.classList.add('active');
+                currentTable = parseInt(this.dataset.table);
+                cart = carts[currentTable];
+                refreshProductDisplay();
+                updateTotals();
+            });
+        }
+
+        // Category filter
+        document.querySelectorAll('.category-item').forEach(item => {
+            item.addEventListener('click', function() {
+                document.querySelectorAll('.category-item').forEach(i => i.classList.remove('active'));
+                this.classList.add('active');
+                
+                const category = this.dataset.category;
+                filterProducts(category);
+            });
+        });
+
+        function filterProducts(category) {
+            const products = document.querySelectorAll('.product-card');
+            products.forEach(product => {
+                if (category === 'all' || product.dataset.category === category) {
+                    product.style.display = 'block';
+                } else {
+                    product.style.display = 'none';
+                }
+            });
+        }
+
+        // Search functionality
+        document.getElementById('productSearch').addEventListener('input', function(e) {
+            const search = e.target.value.toLowerCase();
+            document.querySelectorAll('.product-card').forEach(card => {
+                const name = card.dataset.name.toLowerCase();
+                card.style.display = name.includes(search) ? 'block' : 'none';
+            });
+        });
+
+        // Add click listener to products
+        document.querySelectorAll('.product-card').forEach(card => {
+            card.addEventListener('click', function() {
+                if (!this.classList.contains('in-cart')) {
+                    addToCart(this);
+                }
+            });
+        });
+
+        // Add to cart
+        function addToCart(element) {
+            const id = element.dataset.id;
+            const name = element.dataset.name;
+            const price = parseFloat(element.dataset.price);
+            const stock = parseFloat(element.dataset.stock);
+
+            if (!cart[id]) {
+                cart[id] = {
+                    id: id,
+                    name: name,
+                    price: price,
+                    quantity: 1,
+                    stock: stock
+                };
+                
+                updateProductCardDisplay(element, cart[id]);
+            }
+
+            updateTotals();
+        }
+
+        // Update product card display based on current cart
+        function updateProductCardDisplay(element, item) {
+            if (item) {
+                element.classList.add('in-cart');
+                element.querySelector('.quantity-controls').style.display = 'flex';
+                element.querySelector('.remove-btn').style.display = 'block';
+                element.querySelector('.qty-display').textContent = item.quantity;
+            } else {
+                element.classList.remove('in-cart');
+                element.querySelector('.quantity-controls').style.display = 'none';
+                element.querySelector('.remove-btn').style.display = 'none';
+                element.querySelector('.qty-display').textContent = '0';
+            }
+        }
+
+        function increaseQty(btn) {
+            const card = btn.closest('.product-card');
+            const id = card.dataset.id;
+            const stock = parseFloat(card.dataset.stock);
+            
+            if (cart[id] && cart[id].quantity < stock) {
+                cart[id].quantity++;
+                card.querySelector('.qty-display').textContent = cart[id].quantity;
+                updateTotals();
+            }
+        }
+
+        function decreaseQty(btn) {
+            const card = btn.closest('.product-card');
+            const id = card.dataset.id;
+            
+            if (cart[id] && cart[id].quantity > 1) {
+                cart[id].quantity--;
+                card.querySelector('.qty-display').textContent = cart[id].quantity;
+                updateTotals();
+            }
+        }
+
+        // Edit quantity by clicking on the number
+        function editQuantity(qtyDisplay) {
+            const card = qtyDisplay.closest('.product-card');
+            const id = card.dataset.id;
+            const stock = parseFloat(card.dataset.stock);
+            
+            if (!cart[id]) return;
+            
+            const currentQty = cart[id].quantity;
+            
+            // Create input element
+            const input = document.createElement('input');
+            input.type = 'number';
+            input.min = '1';
+            input.max = stock.toString();
+            input.step = '1';
+            input.value = currentQty;
+            input.className = 'qty-edit-input';
+            input.style.width = '45px';
+            input.style.textAlign = 'center';
+            input.style.border = '2px solid #4F46E5';
+            input.style.borderRadius = '4px';
+            input.style.padding = '2px';
+            input.style.fontWeight = '600';
+            
+            // Replace span with input
+            qtyDisplay.style.display = 'none';
+            qtyDisplay.parentNode.insertBefore(input, qtyDisplay);
+            input.focus();
+            input.select();
+            
+            // Save on Enter or blur
+            const saveQty = () => {
+                let newQty = parseInt(input.value);
+                
+                // Validate
+                if (isNaN(newQty) || newQty < 1) {
+                    newQty = 1;
+                } else if (newQty > stock) {
+                    newQty = Math.floor(stock);
+                    alert(`Maximum stock available is ${Math.floor(stock)}`);
+                }
+                
+                // Update cart
+                cart[id].quantity = newQty;
+                qtyDisplay.textContent = newQty;
+                
+                // Remove input and show span
+                input.remove();
+                qtyDisplay.style.display = '';
+                
+                updateTotals();
+            };
+            
+            input.addEventListener('blur', saveQty);
+            input.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    saveQty();
+                }
+            });
+            
+            // Cancel on Escape
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    input.remove();
+                    qtyDisplay.style.display = '';
+                }
+            });
+        }
+
+        function removeFromCart(btn) {
+            const card = btn.closest('.product-card');
+            const id = card.dataset.id;
+            
+            delete cart[id];
+            card.classList.remove('in-cart');
+            card.querySelector('.quantity-controls').style.display = 'none';
+            card.querySelector('.remove-btn').style.display = 'none';
+            card.querySelector('.qty-display').textContent = '0';
+            
+            updateTotals();
+        }
+
+        function updateTotals() {
+            let subtotal = 0;
+            Object.values(cart).forEach(item => {
+                subtotal += item.price * item.quantity;
+            });
+
+            const discountPercent = parseFloat(document.getElementById('discountPercent').value) || 0;
+            const discountAmount = (subtotal * discountPercent) / 100;
+            const total = subtotal - discountAmount;
+
+            document.getElementById('header-total').textContent = total.toFixed(1);
+            document.getElementById(`table${currentTable}-total`).textContent = total.toFixed(1);
+            
+            // Update modal total if modal is open
+            if (document.getElementById('modalTotal')) {
+                document.getElementById('modalTotal').textContent = total.toFixed(1);
+            }
+            
+            // Calculate due if amount paid is entered
+            calculateDue();
+        }
+
+        function calculateDue() {
+            const amountPaidInput = document.getElementById('amountPaid');
+            const dueDisplay = document.getElementById('dueDisplay');
+            const dueAmount = document.getElementById('dueAmount');
+            
+            if (!amountPaidInput || !dueDisplay) return;
+            
+            const amountPaid = parseFloat(amountPaidInput.value) || 0;
+            
+            // Calculate current total
+            let subtotal = 0;
+            Object.values(cart).forEach(item => {
+                subtotal += item.price * item.quantity;
+            });
+            const discountPercent = parseFloat(document.getElementById('discountPercent').value) || 0;
+            const discountAmount = (subtotal * discountPercent) / 100;
+            const total = subtotal - discountAmount;
+            
+            const due = Math.max(0, total - amountPaid);
+            
+            if (amountPaid > 0 && amountPaid < total) {
+                dueDisplay.style.display = 'block';
+                dueAmount.textContent = due.toFixed(1);
+            } else {
+                dueDisplay.style.display = 'none';
+            }
+        }
+
+        // Person/Table switching
+        document.querySelectorAll('.table-tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                document.querySelectorAll('.table-tab').forEach(t => t.classList.remove('active'));
+                this.classList.add('active');
+                currentTable = parseInt(this.dataset.table);
+                cart = carts[currentTable]; // Switch to the selected person's cart
+                refreshProductDisplay(); // Update all product cards for this cart
+                updateTotals();
+            });
+        });
+
+        // Refresh product display when switching carts
+        function refreshProductDisplay() {
+            document.querySelectorAll('.product-card').forEach(card => {
+                const id = card.dataset.id;
+                const item = cart[id];
+                updateProductCardDisplay(card, item);
+            });
+        }
+
+        // Print modal
+        function openPrintModal() {
+            if (Object.keys(cart).length === 0) {
+                alert('Please add items to cart first!');
+                return;
+            }
+
+            // Update modal cart items
+            let cartHTML = '';
+            Object.values(cart).forEach(item => {
+                const itemTotal = item.price * item.quantity;
+                cartHTML += `
+                    <div class="cart-item">
+                        <span>${item.name} × ${item.quantity}</span>
+                        <span>₹${itemTotal.toFixed(1)}</span>
+                    </div>
+                `;
+            });
+            document.getElementById('modalCartItems').innerHTML = cartHTML;
+
+            // Update total
+            let subtotal = 0;
+            Object.values(cart).forEach(item => {
+                subtotal += item.price * item.quantity;
+            });
+            const discountPercent = parseFloat(document.getElementById('discountPercent').value) || 0;
+            const discountAmount = (subtotal * discountPercent) / 100;
+            const total = subtotal - discountAmount;
+            document.getElementById('modalTotal').textContent = total.toFixed(1);
+
+            document.getElementById('printModal').classList.add('active');
+        }
+
+        function closePrintModal() {
+            document.getElementById('printModal').classList.remove('active');
+        }
+
+        // Billing type tabs
+        document.querySelectorAll('.billing-type-tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                document.querySelectorAll('.billing-type-tab').forEach(t => {
+                    t.classList.remove('active');
+                    t.innerHTML = t.innerHTML.replace('bi-circle-fill', 'bi-circle');
+                });
+                this.classList.add('active');
+                this.innerHTML = this.innerHTML.replace('bi-circle', 'bi-circle-fill');
+                
+                // Show/hide fields based on billing type
+                const billingType = this.dataset.type;
+                const advanceFields = document.getElementById('advanceFields');
+                const basicFields = document.getElementById('basicFields');
+                
+                if (billingType === 'advance') {
+                    // Show B2B/Advanced fields, hide basic fields
+                    advanceFields.style.display = 'block';
+                    basicFields.style.display = 'none';
+                } else {
+                    // Show basic fields, hide B2B/Advanced fields
+                    advanceFields.style.display = 'none';
+                    basicFields.style.display = 'block';
+                }
+            });
+        });
+
+        // Payment buttons
+        document.querySelectorAll('.payment-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.payment-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                document.getElementById('paymentMethod').value = this.dataset.payment;
+            });
+        });
+
+        // Submit bill
+        function submitBill(event) {
+            event.preventDefault();
+            
+            console.log('Submit bill function called');
+            console.log('Cart:', cart);
+
+            if (Object.keys(cart).length === 0) {
+                alert('Please add items to cart first!');
+                return;
+            }
+
+            const formData = new FormData(event.target);
+            const billingTypeTab = document.querySelector('.billing-type-tab.active');
+            console.log('Billing type tab:', billingTypeTab);
+            
+            if (!billingTypeTab) {
+                console.error('No billing type tab found!');
+                alert('Error: Billing type not selected. Please refresh the page.');
+                return;
+            }
+            
+            const billingType = billingTypeTab.dataset.type;
+            console.log('Billing type:', billingType);
+            console.log('Billing type:', billingType);
+            
+            // Validate advanced fields if in advance mode
+            if (billingType === 'advance') {
+                const customerName = formData.get('customerNameAdvance');
+                const customerPhone = formData.get('customerPhoneAdvance');
+                const invoiceType = formData.get('invoiceType');
+                
+                console.log('Advanced mode - Name:', customerName, 'Phone:', customerPhone);
+                
+                if (!customerName || customerName.trim() === '') {
+                    alert('Customer name is required for advanced billing!');
+                    return;
+                }
+                
+                if (!customerPhone || customerPhone.trim() === '') {
+                    alert('Mobile number is required for advanced billing!');
+                    return;
+                }
+                
+                // Validate GSTIN if B2B
+                if (invoiceType === 'B2B') {
+                    const gstin = formData.get('customerGSTIN');
+                    if (!gstin || gstin.trim() === '') {
+                        const confirmProceed = confirm('GSTIN is recommended for B2B invoices. Do you want to proceed without GSTIN?');
+                        if (!confirmProceed) {
+                            return;
+                        }
+                    }
+                }
+            }
+            
+            // Prepare cart items
+            const items = Object.values(cart).map(item => ({
+                productId: item.id,
+                quantity: item.quantity,
+                discount: 0,
+                discountType: 'fixed'
+            }));
+            
+            console.log('Items to submit:', items);
+
+            // Get customer details based on billing type
+            let customerName = '';
+            let customerPhone = '';
+            
+            if (billingType === 'advance') {
+                customerName = formData.get('customerNameAdvance') || '';
+                customerPhone = formData.get('customerPhoneAdvance') || '';
+            } else {
+                customerName = formData.get('customerName') || '';
+                customerPhone = formData.get('customerPhone') || '';
+            }
+
+            const billData = {
+                items: JSON.stringify(items),
+                discount: document.getElementById('discountPercent').value,
+                discountType: 'percentage',
+                customerName: customerName,
+                customerPhone: customerPhone,
+                paymentMethod: formData.get('paymentMethod') || 'cash',
+                amountPaid: formData.get('amountPaid') || '',
+                customerType: billingType === 'advance' ? (formData.get('invoiceType') || 'B2C') : 'B2C',
+                billingType: billingType
+            };
+            
+            console.log('Bill data to submit:', billData);
+            console.log('Bill data to submit:', billData);
+            
+            // Add B2B fields if in advance mode
+            if (billingType === 'advance') {
+                billData.customerGSTIN = formData.get('customerGSTIN') || '';
+                billData.billingAddress = formData.get('billingAddress') || '';
+                billData.stateCode = formData.get('stateCode') || '';
+                billData.hsnCode = formData.get('hsnCode') || '';
+                billData.invoiceType = formData.get('invoiceType') || 'B2C';
+            }
+
+            // Show loading
+            const submitBtn = event.target.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Creating Bill...';
+            submitBtn.disabled = true;
+            
+            console.log('Sending request to /sales/create...');
+
+            // Submit to server
+            fetch('/sales/create', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(billData)
+            })
+            .then(response => {
+                console.log('Response status:', response.status);
+                return response.json();
+            })
+            .then(data => {
+                console.log('Response data:', data);
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+
+                if (data.success) {
+                    // Close modal
+                    closePrintModal();
+                    
+                    // Show success message
+                    alert(`Bill ${data.billNumber} created successfully!`);
+                    
+                    // Auto-open print window
+                    const printWindow = window.open(`/bill/print/${data.billId}`, '_blank', 'width=800,height=600');
+                    
+                    // Wait a moment then auto-print
+                    if (printWindow) {
+                        setTimeout(() => {
+                            printWindow.print();
+                        }, 1000);
+                    }
+                    
+                    // Reset current person's cart
+                    carts[currentTable] = {};
+                    cart = carts[currentTable];
+                    
+                    // Update product card displays
+                    document.querySelectorAll('.product-card').forEach(card => {
+                        card.classList.remove('in-cart');
+                        card.querySelector('.quantity-controls').style.display = 'none';
+                        card.querySelector('.remove-btn').style.display = 'none';
+                        card.querySelector('.qty-display').textContent = '0';
+                    });
+                    
+                    // Update totals
+                    updateTotals();
+                    
+                    // Clear form
+                    event.target.reset();
+                    
+                    // Reset discount
+                    document.getElementById('discountPercent').value = '0';
+                    
+                    // Reset billing type to basic
+                    document.querySelectorAll('.billing-type-tab').forEach(t => {
+                        t.classList.remove('active');
+                        t.innerHTML = t.innerHTML.replace('bi-circle-fill', 'bi-circle');
+                    });
+                    document.querySelector('.billing-type-tab[data-type="basic"]').classList.add('active');
+                    document.querySelector('.billing-type-tab[data-type="basic"]').innerHTML = document.querySelector('.billing-type-tab[data-type="basic"]').innerHTML.replace('bi-circle', 'bi-circle-fill');
+                    document.getElementById('advanceFields').style.display = 'none';
+                    document.getElementById('basicFields').style.display = 'block';
+                } else {
+                    alert('Error: ' + (data.message || 'Failed to create bill'));
+                }
+            })
+            .catch(error => {
+                console.error('Fetch error:', error);
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+                alert('An error occurred while creating the bill. Please try again.');
+            });
+        }
+
+        // Menu dropdown toggle for employees
+        const menuToggleBtn = document.getElementById('menuToggleBtn');
+        const menuDropdown = document.getElementById('menuDropdown');
+        
+        if (menuToggleBtn && menuDropdown) {
+            menuToggleBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                menuDropdown.classList.toggle('show');
+            });
+
+            // Close dropdown when clicking outside
+            document.addEventListener('click', function(e) {
+                if (menuDropdown.classList.contains('show') && 
+                    !menuToggleBtn.contains(e.target) && 
+                    !menuDropdown.contains(e.target)) {
+                    menuDropdown.classList.remove('show');
+                }
+            });
+        }
+
+        // Menu dropdown toggle for admin
+        const adminMenuToggleBtn = document.getElementById('adminMenuToggleBtn');
+        const adminMenuDropdown = document.getElementById('adminMenuDropdown');
+        
+        if (adminMenuToggleBtn && adminMenuDropdown) {
+            adminMenuToggleBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                adminMenuDropdown.classList.toggle('show');
+            });
+
+            // Close dropdown when clicking outside
+            document.addEventListener('click', function(e) {
+                if (adminMenuDropdown.classList.contains('show') && 
+                    !adminMenuToggleBtn.contains(e.target) && 
+                    !adminMenuDropdown.contains(e.target)) {
+                    adminMenuDropdown.classList.remove('show');
+                }
+            });
+        }
+    </script>
+</body>
+</html>

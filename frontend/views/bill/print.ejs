@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Print Bill - <%= sale.billNumber %></title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f5f5f5;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+        }
+        
+        .invoice-wrapper {
+            width: 400px;
+            max-width: 400px;
+            min-width: 400px;
+            background: white;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #333;
+            padding-bottom: 10px;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 22px;
+        }
+        .header p {
+            font-size: 12px;
+            margin-top: 5px;
+        }
+        .info-section {
+            margin-bottom: 15px;
+            font-size: 13px;
+        }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 15px;
+            font-size: 13px;
+        }
+        th, td {
+            padding: 8px 4px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+            font-size: 12px;
+        }
+        .text-right {
+            text-align: right;
+        }
+        .totals {
+            margin-top: 10px;
+        }
+        .totals table {
+            margin-bottom: 0;
+        }
+        .grand-total {
+            font-size: 16px;
+            font-weight: bold;
+            background-color: #f0f0f0;
+        }
+        .qr-section {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .qr-section img {
+            border: 2px solid #333;
+            padding: 5px;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid #ccc;
+            font-size: 12px;
+        }
+        
+        /* Button Styles */
+        .button-group {
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        .button-group button {
+            padding: 10px 20px;
+            font-size: 14px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            margin: 0 5px;
+            transition: all 0.3s;
+        }
+        .btn-print {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .btn-print:hover {
+            background-color: #45a049;
+        }
+        .btn-close {
+            background-color: #f44336;
+            color: white;
+        }
+        .btn-close:hover {
+            background-color: #da190b;
+        }
+        
+        /* Print Styles - Force narrow width */
+        @media print {
+            @page {
+                size: 80mm auto;
+                margin: 0;
+            }
+            
+            body {
+                padding: 0;
+                background: white;
+                margin: 0;
+                width: 80mm;
+            }
+            
+            .invoice-wrapper {
+                width: 80mm !important;
+                max-width: 80mm !important;
+                min-width: 80mm !important;
+                box-shadow: none;
+                border-radius: 0;
+                margin: 0;
+                padding: 10mm;
+            }
+            
+            .no-print {
+                display: none !important;
+            }
+            
+            /* Ensure content fits in thermal width */
+            .header h1 {
+                font-size: 20px;
+            }
+            
+            table {
+                font-size: 11px;
+            }
+            
+            th, td {
+                padding: 6px 3px;
+            }
+            
+            .info-section {
+                font-size: 11px;
+            }
+            
+            .qr-section img {
+                width: 120px;
+                height: 120px;
+            }
+        }
+        
+        /* Print preview compatibility */
+        @media screen {
+            body.print-preview {
+                background: white;
+                padding: 0;
+            }
+            
+            body.print-preview .invoice-wrapper {
+                box-shadow: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="invoice-wrapper">
+        <div class="button-group no-print">
+            <button onclick="window.print()" class="btn-print">
+                🖨️ Print Bill
+            </button>
+            <button onclick="closeWindow()" class="btn-close">
+                ✖️ Close
+            </button>
+        </div>
+
+        <div class="header">
+            <h1><%= shopInfo.shopName %></h1>
+            <% if (shopInfo.shopAddress && shopInfo.shopAddress.trim() !== '') { %>
+                <p style="margin: 5px 0;"><%= shopInfo.shopAddress %></p>
+            <% } %>
+            <% if (shopInfo.shopGST && shopInfo.shopGST.trim() !== '') { %>
+                <p style="font-size: 11px; margin: 3px 0;"><strong>GST:</strong> <%= shopInfo.shopGST %></p>
+            <% } %>
+        </div>
+
+        <div class="info-section">
+            <div class="info-row">
+                <strong>Bill Number:</strong>
+                <span><%= sale.billNumber %></span>
+            </div>
+            <div class="info-row">
+                <strong>Date:</strong>
+                <span><%= displayDate %></span>
+            </div>
+            <div class="info-row">
+                <strong>Time:</strong>
+                <span><%= displayTime %></span>
+            </div>
+            <div class="info-row">
+                <strong>Cashier:</strong>
+                <span><%= sale.createdBy ? sale.createdBy.username : 'N/A' %></span>
+            </div>
+            <div class="info-row">
+                <strong>Customer:</strong>
+                <span><%= sale.customerName && sale.customerName.trim() !== '' ? sale.customerName : 'N/A' %></span>
+            </div>
+            <% if (sale.customerPhone) { %>
+            <div class="info-row">
+                <strong>Phone:</strong>
+                <span><%= sale.customerPhone %></span>
+            </div>
+            <% } %>
+            <% if (sale.customerType === 'B2B' && sale.customerGSTIN) { %>
+            <div class="info-row">
+                <strong>Customer GSTIN:</strong>
+                <span><%= sale.customerGSTIN %></span>
+            </div>
+            <% } %>
+            <% if (sale.placeOfSupply && sale.placeOfSupply.trim() !== '') { %>
+            <div class="info-row">
+                <strong>Place of Supply:</strong>
+                <span><%= sale.placeOfSupply %></span>
+            </div>
+            <% } %>
+            <div class="info-row">
+                <strong>Payment:</strong>
+                <span><%= sale.paymentMethod.toUpperCase() %></span>
+            </div>
+        </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Item</th>
+                <% if (sale.customerType === 'B2B') { %>
+                <th style="font-size: 10px;">HSN</th>
+                <% } %>
+                <th class="text-right">Price</th>
+                <th class="text-right">Qty</th>
+                <th class="text-right">Subtotal</th>
+            </tr>
+        </thead>
+        <tbody>
+            <% sale.items.forEach((item, index) => { 
+                const baseAmount = item.price * item.quantity;
+                const itemDiscount = item.itemDiscount || 0;
+            %>
+                <tr>
+                    <td><%= index + 1 %></td>
+                    <td>
+                        <%= item.productName %>
+                        <% if (itemDiscount > 0) { %>
+                            <br><small style="color: green;">Disc: -₹<%= itemDiscount.toFixed(2) %></small>
+                        <% } %>
+                        <% if (sale.customerType === 'B2B' && (item.cgstAmount > 0 || item.igstAmount > 0)) { %>
+                            <br><small style="color: #666; font-size: 10px;">
+                                <% if (item.igstAmount > 0) { %>
+                                    IGST <%= item.igstRate %>%: ₹<%= item.igstAmount.toFixed(2) %>
+                                <% } else { %>
+                                    CGST <%= item.cgstRate %>%: ₹<%= item.cgstAmount.toFixed(2) %> | SGST <%= item.sgstRate %>%: ₹<%= item.sgstAmount.toFixed(2) %>
+                                <% } %>
+                            </small>
+                        <% } %>
+                    </td>
+                    <% if (sale.customerType === 'B2B') { %>
+                    <td style="font-size: 10px;"><%= item.hsnCode || 'N/A' %></td>
+                    <% } %>
+                    <td class="text-right">₹<%= item.price.toFixed(2) %></td>
+                    <td class="text-right"><%= item.quantity %></td>
+                    <td class="text-right">₹<%= item.subtotal.toFixed(2) %></td>
+                </tr>
+            <% }); %>
+        </tbody>
+    </table>
+
+    <div class="totals">
+        <table>
+            <tr>
+                <td><strong>Subtotal:</strong></td>
+                <td class="text-right">₹<%= sale.subtotal.toFixed(2) %></td>
+            </tr>
+            <% if (sale.discount > 0) { %>
+                <tr>
+                    <td><strong>Discount:</strong></td>
+                    <td class="text-right" style="color: red;">-₹<%= sale.discount.toFixed(2) %></td>
+                </tr>
+            <% } %>
+            <% if (sale.totalGST && sale.totalGST > 0) { %>
+                <% if (sale.isInterState) { %>
+                <tr style="background-color: #e3f2fd;">
+                    <td><strong>IGST:</strong></td>
+                    <td class="text-right">₹<%= sale.totalIGST.toFixed(2) %></td>
+                </tr>
+                <% } else { %>
+                <tr style="background-color: #e3f2fd;">
+                    <td><strong>CGST:</strong></td>
+                    <td class="text-right">₹<%= sale.totalCGST.toFixed(2) %></td>
+                </tr>
+                <tr style="background-color: #e3f2fd;">
+                    <td><strong>SGST:</strong></td>
+                    <td class="text-right">₹<%= sale.totalSGST.toFixed(2) %></td>
+                </tr>
+                <% } %>
+            <% } %>
+            <tr class="grand-total">
+                <td><strong>TOTAL:</strong></td>
+                <td class="text-right">₹<%= sale.total.toFixed(2) %></td>
+            </tr>
+            <% if (sale.amountPaid > 0) { %>
+                <tr style="background-color: #d4edda;">
+                    <td><strong>Amount Paid:</strong></td>
+                    <td class="text-right" style="color: #155724;">₹<%= sale.amountPaid.toFixed(2) %></td>
+                </tr>
+            <% } %>
+            <% if (sale.dueAmount > 0) { %>
+                <tr style="background-color: #f8d7da;">
+                    <td><strong>Due Amount:</strong></td>
+                    <td class="text-right" style="color: #721c24; font-weight: bold;">₹<%= sale.dueAmount.toFixed(2) %></td>
+                </tr>
+            <% } %>
+            <% if (sale.isCancelled) { %>
+                <tr style="background-color: #f8d7da; border: 2px solid #dc3545;">
+                    <td><strong>REFUND AMOUNT:</strong></td>
+                    <td class="text-right" style="color: #dc3545; font-weight: bold;">₹<%= sale.refundAmount.toFixed(2) %></td>
+                </tr>
+            <% } %>
+        </table>
+    </div>
+
+    <% if (sale.isCancelled) { %>
+        <div style="background-color: #f8d7da; border: 2px solid #dc3545; padding: 15px; margin: 15px 0; border-radius: 5px; text-align: center;">
+            <h3 style="color: #dc3545; margin: 0 0 10px 0;">⚠️ CANCELLED SALE ⚠️</h3>
+            <p style="margin: 5px 0;"><strong>Cancelled At:</strong> <%= new Date(sale.cancelledAt).toLocaleString() %></p>
+            <p style="margin: 5px 0;"><strong>Refund:</strong> ₹<%= sale.refundAmount.toFixed(2) %> via <%= sale.refundMethod.toUpperCase() %></p>
+            <p style="margin: 5px 0; font-size: 12px;"><strong>Reason:</strong> <%= sale.cancellationReason %></p>
+        </div>
+    <% } %>
+
+    <div class="qr-section">
+        <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=Bill:<%= sale.billNumber %>|Total:Rs.<%= sale.total.toFixed(2) %>|Customer:<%= encodeURIComponent(sale.customerName) %>|Date:<%= new Date(sale.createdAt).toLocaleDateString() %>" 
+             alt="QR Code">
+        <p style="font-size: 11px; margin-top: 5px; color: #666;">Scan for Bill Details</p>
+    </div>
+
+    <div class="footer">
+        <p><strong>Thank you for your purchase!</strong></p>
+        <p style="font-size: 11px; color: #666; margin-top: 5px;">This is a computer-generated bill</p>
+    </div>
+    
+    </div>
+    <!-- End invoice-wrapper -->
+
+    <script>
+        function closeWindow() {
+            window.close();
+            // If the browser blocks window.close(), navigate back instead
+            setTimeout(function() {
+                if (!window.closed) {
+                    window.history.back();
+                }
+            }, 100);
+        }
+
+        // Auto print when page loads
+        window.onload = function() {
+            setTimeout(() => {
+                window.print();
+            }, 300);
+        };
+    </script>
+</body>
+</html>
