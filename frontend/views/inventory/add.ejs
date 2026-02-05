@@ -165,6 +165,56 @@
                                 </div>
                             </div>
 
+                            <!-- 💰 PAYMENT DETAILS -->
+                            <div class="card mb-3">
+                                <div class="card-header bg-light">
+                                    <h6 class="mb-0"><i class="bi bi-credit-card"></i> Payment Details for Supplier</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-4 mb-3">
+                                            <label class="form-label">Total Purchase Amount (₹)</label>
+                                            <input type="number" class="form-control" name="totalPurchaseAmount" id="totalPurchaseAmount" min="0" step="0.01" placeholder="0.00">
+                                            <small class="text-muted">Total amount to pay supplier</small>
+                                        </div>
+                                        <div class="col-md-4 mb-3">
+                                            <label class="form-label">Amount Paid Now (₹)</label>
+                                            <input type="number" class="form-control" name="amountPaid" id="amountPaid" min="0" step="0.01" placeholder="0.00">
+                                            <small class="text-muted">Amount paying right now</small>
+                                        </div>
+                                        <div class="col-md-4 mb-3">
+                                            <label class="form-label">Amount Due (₹)</label>
+                                            <input type="number" class="form-control bg-light" name="amountDue" id="amountDue" readonly placeholder="0.00">
+                                            <small class="text-muted">Auto-calculated</small>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label">Payment Method</label>
+                                            <select class="form-select" name="paymentMethod" id="paymentMethod">
+                                                <option value="none">No Payment Yet</option>
+                                                <option value="cash">Cash</option>
+                                                <option value="online">Online Transfer</option>
+                                                <option value="upi">UPI</option>
+                                                <option value="card">Card</option>
+                                                <option value="mixed">Mixed (Cash + Online)</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label">Payment Status</label>
+                                            <input type="text" class="form-control bg-light" id="paymentStatus" readonly value="Not Specified">
+                                            <small class="text-muted">Auto-calculated</small>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-12 mb-3">
+                                            <label class="form-label">Payment Notes</label>
+                                            <textarea class="form-control" name="paymentNotes" rows="2" placeholder="Additional payment notes (optional)"></textarea>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
                             <!-- 📝 ADDITIONAL DETAILS -->
                             <div class="card mb-3">
                                 <div class="card-header bg-light">
@@ -374,6 +424,84 @@
                 }
             });
         }
+
+        // 💰 Auto-calculate payment details
+        const totalPurchaseInput = document.getElementById('totalPurchaseAmount');
+        const amountPaidInput = document.getElementById('amountPaid');
+        const amountDueInput = document.getElementById('amountDue');
+        const paymentMethodInput = document.getElementById('paymentMethod');
+        const paymentStatusInput = document.getElementById('paymentStatus');
+
+        function calculatePaymentDetails() {
+            const totalPurchase = parseFloat(totalPurchaseInput.value) || 0;
+            const amountPaid = parseFloat(amountPaidInput.value) || 0;
+            const amountDue = totalPurchase - amountPaid;
+
+            // Set amount due
+            amountDueInput.value = amountDue.toFixed(2);
+
+            // Determine payment status
+            let status = 'Not Specified';
+            if (totalPurchase > 0) {
+                if (amountPaid === 0) {
+                    status = 'Pending';
+                } else if (amountDue <= 0) {
+                    status = 'Fully Paid';
+                } else {
+                    status = 'Partial Payment';
+                }
+            }
+
+            paymentStatusInput.value = status;
+
+            // Color coding for amount due
+            if (amountDue > 0) {
+                amountDueInput.style.color = 'red';
+                amountDueInput.style.fontWeight = 'bold';
+            } else {
+                amountDueInput.style.color = 'green';
+                amountDueInput.style.fontWeight = 'bold';
+            }
+        }
+
+        // Prevent negative values and over-payment
+        amountPaidInput.addEventListener('input', function() {
+            const totalPurchase = parseFloat(totalPurchaseInput.value) || 0;
+            const amountPaid = parseFloat(this.value) || 0;
+
+            if (amountPaid < 0) {
+                this.value = 0;
+            }
+            
+            // Warning if paying more than total purchase
+            if (amountPaid > totalPurchase && totalPurchase > 0) {
+                this.style.borderColor = 'orange';
+            } else {
+                this.style.borderColor = '';
+            }
+
+            calculatePaymentDetails();
+        });
+
+        totalPurchaseInput.addEventListener('input', function() {
+            if (parseFloat(this.value) < 0) {
+                this.value = 0;
+            }
+            calculatePaymentDetails();
+        });
+
+        // Auto-set payment method to "none" if amount paid is 0
+        amountPaidInput.addEventListener('change', function() {
+            const amountPaid = parseFloat(this.value) || 0;
+            if (amountPaid === 0 && paymentMethodInput.value !== 'none') {
+                if (confirm('Amount paid is 0. Set payment method to "No Payment Yet"?')) {
+                    paymentMethodInput.value = 'none';
+                }
+            }
+        });
+
+        // Recalculate when payment method changes
+        paymentMethodInput.addEventListener('change', calculatePaymentDetails);
     </script>
 </body>
 </html>

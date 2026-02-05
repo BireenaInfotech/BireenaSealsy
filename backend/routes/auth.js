@@ -47,10 +47,27 @@ router.get('/pricing', (req, res) => {
     });
 });
 
-router.get('/login', redirectIfAuthenticated, (req, res) => {
-    res.render('login', {
-        user: req.session.user || null
-    });
+router.get('/login', (req, res) => {
+    // SECURITY: Always clear session when explicitly visiting login page
+    // This prevents auto-login from old sessions and ensures fresh authentication
+    if (req.session.user) {
+        req.session.destroy((err) => {
+            if (err) console.error('Session destroy error on login page:', err);
+            // Clear all auth cookies
+            res.clearCookie('authToken', { path: '/' });
+            res.clearCookie('sessionId', { path: '/' });
+            res.clearCookie('connect.sid', { path: '/' });
+            // Render login page
+            res.render('login', {
+                user: null,
+                success_msg: 'Please login with your credentials'
+            });
+        });
+    } else {
+        res.render('login', {
+            user: null
+        });
+    }
 });
 
 // ==================== ADMIN LOGIN ====================
@@ -706,9 +723,10 @@ router.get('/logout', (req, res) => {
             console.error('Logout error:', err);
         }
         
-        // Clear all cookies
-        res.clearCookie('authToken');
-        res.clearCookie('connect.sid');
+        // Clear all cookies (sessionId is our custom session cookie name)
+        res.clearCookie('authToken', { path: '/' });
+        res.clearCookie('sessionId', { path: '/' });
+        res.clearCookie('connect.sid', { path: '/' });
         
         // Set no-cache headers to prevent back button access
         res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
@@ -749,9 +767,10 @@ router.post('/logout', (req, res) => {
             });
         }
         
-        // Clear cookies
-        res.clearCookie('authToken');
-        res.clearCookie('connect.sid');
+        // Clear all cookies (sessionId is our custom session cookie name)
+        res.clearCookie('authToken', { path: '/' });
+        res.clearCookie('sessionId', { path: '/' });
+        res.clearCookie('connect.sid', { path: '/' });
         res.clearCookie('authToken');
         res.json({ 
             success: true, 

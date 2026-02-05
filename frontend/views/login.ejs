@@ -706,6 +706,12 @@
     </div>
 
     <script>
+        // SECURITY: Clear any stored authentication data when login page loads
+        // This ensures fresh login is always required
+        localStorage.removeItem('isLoggedIn');
+        localStorage.removeItem('userRole');
+        localStorage.removeItem('username');
+        
         function togglePassword(inputId) {
             const input = document.getElementById(inputId);
             const eyeIcon = document.getElementById(inputId + '-eye');
