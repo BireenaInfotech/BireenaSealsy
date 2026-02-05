@@ -266,8 +266,65 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" id="makePaymentBtn" class="btn btn-success" onclick="showPaymentForm()" style="display:none;">
+                        <i class="bi bi-cash-coin"></i> Make Payment
+                    </button>
                     <button type="button" class="btn btn-primary" onclick="printCurrentSupplier()">
                         <i class="bi bi-printer"></i> Print Report
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment Modal -->
+    <div class="modal fade" id="paymentModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title">
+                        <i class="bi bi-cash-coin"></i> Make Payment to Supplier
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="paymentForm">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Supplier Name</label>
+                            <input type="text" class="form-control bg-light" id="paymentSupplierName" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Total Outstanding Dues</label>
+                            <input type="text" class="form-control bg-light text-danger fw-bold" id="paymentTotalDue" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Payment Amount (₹) <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" id="paymentAmount" min="0" step="0.01" placeholder="Enter amount to pay" required>
+                            <small class="text-muted">Enter the amount you're paying now</small>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Payment Method <span class="text-danger">*</span></label>
+                            <select class="form-select" id="paymentMethodSelect" required>
+                                <option value="">-- Select Payment Method --</option>
+                                <option value="cash">Cash</option>
+                                <option value="online">Online Transfer</option>
+                                <option value="upi">UPI</option>
+                                <option value="card">Card</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Payment Notes</label>
+                            <textarea class="form-control" id="paymentNotesInput" rows="3" placeholder="Add notes (optional): e.g., Transaction ID, Reference number, etc."></textarea>
+                        </div>
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle"></i> <strong>Note:</strong> Payment will be distributed across products with outstanding dues.
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-success" onclick="submitPayment()">
+                        <i class="bi bi-check-circle"></i> Submit Payment
                     </button>
                 </div>
             </div>
@@ -435,6 +492,102 @@
                 }
             `;
             document.getElementById('supplierDetailsContent').innerHTML = html;
+            
+            // Show/hide Make Payment button based on dues
+            const makePaymentBtn = document.getElementById('makePaymentBtn');
+            if (supplier.amountDue > 0) {
+                makePaymentBtn.style.display = 'inline-block';
+            } else {
+                makePaymentBtn.style.display = 'none';
+            }
+        }
+
+        function showPaymentForm() {
+            // Fetch latest supplier details
+            fetch(`/inventory/supplier-details?name=${encodeURIComponent(currentSupplierName)}&contact=${encodeURIComponent(currentSupplierContact)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.supplier.amountDue > 0) {
+                        // Populate payment form
+                        document.getElementById('paymentSupplierName').value = data.supplier.name;
+                        document.getElementById('paymentTotalDue').value = `₹${data.supplier.amountDue.toFixed(2)}`;
+                        document.getElementById('paymentAmount').max = data.supplier.amountDue;
+                        document.getElementById('paymentAmount').value = '';
+                        document.getElementById('paymentMethodSelect').value = '';
+                        document.getElementById('paymentNotesInput').value = '';
+                        
+                        // Show payment modal
+                        const paymentModal = new bootstrap.Modal(document.getElementById('paymentModal'));
+                        paymentModal.show();
+                    } else {
+                        alert('No outstanding dues found for this supplier.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error loading payment form');
+                });
+        }
+
+        function submitPayment() {
+            const paymentAmount = parseFloat(document.getElementById('paymentAmount').value);
+            const paymentMethod = document.getElementById('paymentMethodSelect').value;
+            const paymentNotes = document.getElementById('paymentNotesInput').value;
+
+            // Validation
+            if (!paymentAmount || paymentAmount <= 0) {
+                alert('Please enter a valid payment amount');
+                return;
+            }
+
+            if (!paymentMethod) {
+                alert('Please select a payment method');
+                return;
+            }
+
+            // Confirm before submitting
+            if (!confirm(`Confirm payment of ₹${paymentAmount.toFixed(2)} via ${paymentMethod.toUpperCase()} to ${currentSupplierName}?`)) {
+                return;
+            }
+
+            // Submit payment
+            fetch('/inventory/supplier-payment', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    supplierName: currentSupplierName,
+                    supplierContact: currentSupplierContact,
+                    paymentAmount: paymentAmount,
+                    paymentMethod: paymentMethod,
+                    paymentNotes: paymentNotes
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(`✓ ${data.message}\nRemaining Due: ₹${data.remainingDue}`);
+                    
+                    // Close payment modal
+                    const paymentModal = bootstrap.Modal.getInstance(document.getElementById('paymentModal'));
+                    paymentModal.hide();
+                    
+                    // Refresh supplier details
+                    viewSupplierDetails(currentSupplierName, currentSupplierContact);
+                    
+                    // Reload page to update supplier list
+                    setTimeout(() => {
+                        location.reload();
+                    }, 2000);
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error processing payment');
+            });
         }
 
         function printCurrentSupplier() {

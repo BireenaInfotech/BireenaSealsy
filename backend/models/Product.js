@@ -92,6 +92,15 @@ const productSchema = new mongoose.Schema({
         default: 0,
         min: 0
     },
+    paymentMethod: {
+        type: String,
+        enum: ['cash', 'online', 'card', 'upi', 'mixed', 'none'],
+        default: 'none'
+    },
+    paymentNotes: {
+        type: String,
+        default: ''
+    },
     batchNumber: {
         type: String,
         default: ''

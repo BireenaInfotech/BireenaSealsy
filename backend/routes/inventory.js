@@ -137,7 +137,8 @@ router.post('/add', isAuthenticated, async (req, res) => {
         const { 
             name, category, price, purchasePrice, sellingPrice, stock, unit, 
             reorderLevel, description, image, mfgDate, expiryDate, supplierName, 
-            supplierContact, batchNumber, branch, hsnCode
+            supplierContact, batchNumber, branch, hsnCode,
+            totalPurchaseAmount, amountPaid, paymentMethod, paymentNotes
         } = req.body;
 
         // 🎯 Calculate expirySoon status
@@ -147,6 +148,22 @@ router.post('/add', isAuthenticated, async (req, res) => {
             const expiry = new Date(expiryDate);
             const daysUntilExpiry = Math.ceil((expiry - today) / (1000 * 60 * 60 * 24));
             expirySoon = daysUntilExpiry >= 0 && daysUntilExpiry <= 30;
+        }
+
+        // 💰 Calculate payment details
+        const totalPurchase = parseFloat(totalPurchaseAmount || 0);
+        const paid = parseFloat(amountPaid || 0);
+        const due = totalPurchase - paid;
+        
+        let paymentStatus = 'none';
+        if (totalPurchase > 0) {
+            if (paid === 0) {
+                paymentStatus = 'pending';
+            } else if (due <= 0) {
+                paymentStatus = 'paid';
+            } else {
+                paymentStatus = 'partial';
+            }
         }
 
         const product = new Product({
@@ -168,6 +185,12 @@ router.post('/add', isAuthenticated, async (req, res) => {
             hsnCode: hsnCode || '',
             lastPurchasedDate: new Date(),
             batchNumber: batchNumber || '',
+            totalPurchaseAmount: totalPurchase,
+            amountPaid: paid,
+            amountDue: due,
+            paymentMethod: paymentMethod || 'none',
+            paymentNotes: paymentNotes || '',
+            supplierPaymentStatus: paymentStatus,
             branch: req.session.user.branch || 'Main Branch',
             adminId: getAdminId(req),
             addedBy: req.session.user ? req.session.user.id : null
@@ -1320,6 +1343,157 @@ router.get('/supplier-export', isAuthenticated, async (req, res) => {
     } catch (error) {
         console.error('Export error:', error);
         res.status(500).send('Error exporting report');
+    }
+});
+
+// 🎯 CLEAR/UPDATE SUPPLIER DUES
+router.post('/supplier-payment', isAuthenticated, async (req, res) => {
+    try {
+        const adminId = getAdminId(req);
+        const { supplierName, supplierContact, paymentAmount, paymentMethod, paymentNotes } = req.body;
+        
+        console.log('Payment request:', { supplierName, supplierContact, paymentAmount, paymentMethod });
+        
+        // Validate input
+        if (!supplierName || !paymentAmount || paymentAmount <= 0) {
+            return res.json({ success: false, message: 'Invalid payment details' });
+        }
+        
+        // Find all products from this supplier
+        const filter = { 
+            adminId,
+            supplierName: supplierName
+        };
+        
+        if (supplierContact) {
+            filter.supplierContact = supplierContact;
+        }
+        
+        const products = await Product.find(filter);
+        console.log(`Found ${products.length} products for supplier ${supplierName}`);
+        
+        if (products.length === 0) {
+            return res.json({ success: false, message: 'No products found for this supplier' });
+        }
+        
+        // Calculate total dues (similar to supplier-details calculation)
+        let totalDue = 0;
+        let totalPurchaseAmount = 0;
+        let totalAmountPaid = 0;
+        
+        products.forEach(product => {
+            const stock = product.stock || 0;
+            const purchasePrice = product.purchasePrice || product.price || 0;
+            const stockValue = stock * purchasePrice;
+            
+            // Use totalPurchaseAmount if set, otherwise use stock value
+            const purchaseAmount = product.totalPurchaseAmount || stockValue;
+            const paid = product.amountPaid || 0;
+            const due = purchaseAmount - paid;
+            
+            totalPurchaseAmount += purchaseAmount;
+            totalAmountPaid += paid;
+            totalDue += due;
+            
+            // Update product fields if not set
+            if (!product.totalPurchaseAmount) {
+                product.totalPurchaseAmount = stockValue;
+            }
+            if (!product.amountDue || product.amountDue !== due) {
+                product.amountDue = due;
+            }
+        });
+        
+        console.log('Total due:', totalDue, 'Total purchase:', totalPurchaseAmount, 'Total paid:', totalAmountPaid);
+        
+        if (totalDue <= 0) {
+            return res.json({ success: false, message: 'No outstanding dues for this supplier' });
+        }
+        
+        const amountToPay = parseFloat(paymentAmount);
+        
+        if (amountToPay > totalDue) {
+            return res.json({ success: false, message: `Payment amount (₹${amountToPay}) exceeds total dues (₹${totalDue.toFixed(2)})` });
+        }
+        
+        // Distribute payment across products with dues (FIFO - oldest first)
+        let remainingPayment = amountToPay;
+        const updatedProducts = [];
+        
+        for (const product of products) {
+            if (remainingPayment <= 0) break;
+            
+            // Recalculate product due
+            const stock = product.stock || 0;
+            const purchasePrice = product.purchasePrice || product.price || 0;
+            const stockValue = stock * purchasePrice;
+            const purchaseAmount = product.totalPurchaseAmount || stockValue;
+            const currentPaid = product.amountPaid || 0;
+            const productDue = purchaseAmount - currentPaid;
+            
+            if (productDue > 0) {
+                const paymentForProduct = Math.min(remainingPayment, productDue);
+                
+                // Initialize/update fields
+                if (!product.totalPurchaseAmount) {
+                    product.totalPurchaseAmount = purchaseAmount;
+                }
+                
+                product.amountPaid = currentPaid + paymentForProduct;
+                product.amountDue = productDue - paymentForProduct;
+                
+                // Update payment status
+                if (product.amountDue <= 0) {
+                    product.supplierPaymentStatus = 'paid';
+                } else if (product.amountPaid > 0) {
+                    product.supplierPaymentStatus = 'partial';
+                }
+                
+                // Update payment method - use lowercase to match enum
+                const method = (paymentMethod || 'cash').toLowerCase();
+                if (!product.paymentMethod || product.paymentMethod === 'none') {
+                    product.paymentMethod = method;
+                } else if (product.paymentMethod !== method) {
+                    product.paymentMethod = 'mixed';
+                }
+                
+                // Append payment notes
+                if (paymentNotes) {
+                    const dateStr = new Date().toLocaleDateString('en-IN');
+                    const noteEntry = `[${dateStr}] Paid ₹${paymentForProduct.toFixed(2)} via ${method}: ${paymentNotes}`;
+                    product.paymentNotes = product.paymentNotes 
+                        ? `${product.paymentNotes}\n${noteEntry}` 
+                        : noteEntry;
+                } else {
+                    const dateStr = new Date().toLocaleDateString('en-IN');
+                    const noteEntry = `[${dateStr}] Paid ₹${paymentForProduct.toFixed(2)} via ${method}`;
+                    product.paymentNotes = product.paymentNotes 
+                        ? `${product.paymentNotes}\n${noteEntry}` 
+                        : noteEntry;
+                }
+                
+                console.log(`Updating product ${product.name}: paid=${product.amountPaid}, due=${product.amountDue}`);
+                
+                await product.save();
+                updatedProducts.push(product.name);
+                
+                remainingPayment -= paymentForProduct;
+            }
+        }
+        
+        console.log('Payment processed successfully:', updatedProducts);
+        
+        res.json({ 
+            success: true, 
+            message: `Payment of ₹${amountToPay.toFixed(2)} recorded successfully`,
+            updatedProducts: updatedProducts,
+            remainingDue: (totalDue - amountToPay).toFixed(2)
+        });
+        
+    } catch (error) {
+        console.error('Supplier payment error:', error);
+        console.error('Error stack:', error.stack);
+        res.status(500).json({ success: false, message: `Error: ${error.message}` });
     }
 });
 
