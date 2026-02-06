@@ -1166,13 +1166,13 @@
                 flex-direction: column;
                 justify-content: flex-start;
                 padding: 2rem;
-                gap: 0;25s cubic-bezier(0.4, 0, 0.2, 1); /* Faster smooth animation */
+                gap: 0;
+                transform: translateX(-100%);
+                transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
                 border-right: 1px solid rgba(124, 58, 237, 0.3);
                 overflow-y: auto;
                 box-shadow: 4px 0 20px rgba(0, 0, 0, 0.5);
-                will-change: transform; /* Hardware acceleration */ 0.3);
-                overflow-y: auto;
-                box-shadow: 4px 0 20px rgba(0, 0, 0, 0.5);
+                will-change: transform;
             }
 
             .nav-menu.active {
@@ -1582,7 +1582,7 @@
                 </div>
                 
             <nav class="nav-menu" id="navMenu" role="navigation" aria-label="Main navigation">
-                <a href="/" class="nav-link active" aria-current="page">Home</a>
+                <a href="#hero" class="nav-link active" aria-current="page">Home</a>
                 <a href="/about" class="nav-link">About</a>
                 <a href="/features" class="nav-link">Features</a>
                 <a href="/pricing" class="nav-link">Pricing</a>
@@ -1983,6 +1983,7 @@
 
         function createDots() {
             const dotsContainer = document.getElementById('dotsContainer');
+            if (!dotsContainer) return; // NULL CHECK
             dotsContainer.innerHTML = '';
             const totalSlides = Math.ceil(testimonials / cardsPerView);
             for (let i = 0; i < totalSlides; i++) {
@@ -1995,6 +1996,7 @@
 
         function updateSlider() {
             const track = document.getElementById('sliderTrack');
+            if (!track) return; // NULL CHECK
             const slideWidth = 100 / cardsPerView;
             track.style.transform = `translateX(-${currentSlide * 100}%)`;
             
@@ -2037,17 +2039,19 @@
             startAutoSlide();
         }
 
-        // Pause on hover
+        // Pause on hover - WITH NULL CHECK
         const sliderContainer = document.querySelector('.slider-container');
-        sliderContainer.addEventListener('mouseenter', () => {
-            clearInterval(autoSlideInterval);
-        });
-        
-        sliderContainer.addEventListener('mouseleave', () => {
-            startAutoSlide();
-        });
+        if (sliderContainer) {
+            sliderContainer.addEventListener('mouseenter', () => {
+                clearInterval(autoSlideInterval);
+            });
+            
+            sliderContainer.addEventListener('mouseleave', () => {
+                startAutoSlide();
+            });
+        }
 
-        // Touch/Swipe functionality for mobile
+        // Touch/Swipe functionality for mobile - WITH NULL CHECK
         let touchStartX = 0;
         let touchEndX = 0;
         let touchStartY = 0;
@@ -2055,18 +2059,20 @@
 
         const sliderWrapper = document.querySelector('.slider-wrapper');
         
-        sliderWrapper.addEventListener('touchstart', (e) => {
-            touchStartX = e.changedTouches[0].screenX;
-            touchStartY = e.changedTouches[0].screenY;
-            clearInterval(autoSlideInterval);
-        }, { passive: true });
+        if (sliderWrapper) {
+            sliderWrapper.addEventListener('touchstart', (e) => {
+                touchStartX = e.changedTouches[0].screenX;
+                touchStartY = e.changedTouches[0].screenY;
+                clearInterval(autoSlideInterval);
+            }, { passive: true });
 
-        sliderWrapper.addEventListener('touchend', (e) => {
-            touchEndX = e.changedTouches[0].screenX;
-            touchEndY = e.changedTouches[0].screenY;
-            handleSwipe();
-            startAutoSlide();
-        }, { passive: true });
+            sliderWrapper.addEventListener('touchend', (e) => {
+                touchEndX = e.changedTouches[0].screenX;
+                touchEndY = e.changedTouches[0].screenY;
+                handleSwipe();
+                startAutoSlide();
+            }, { passive: true });
+        }
 
         function handleSwipe() {
             const swipeThreshold = 50;
@@ -2085,50 +2091,48 @@
             }
         }
 
-        // Initialize
-        window.addEventListener('resize', () => {
+        // Initialize - Only if slider elements exist
+        if (document.getElementById('dotsContainer') && document.getElementById('sliderTrack')) {
+            window.addEventListener('resize', () => {
+                updateCardsPerView();
+                createDots();
+                if (currentSlide >= Math.ceil(testimonials / cardsPerView)) {
+                    currentSlide = 0;
+                }
+                updateSlider();
+            });
+
             updateCardsPerView();
             createDots();
-            if (currentSlide >= Math.ceil(testimonials / cardsPerView)) {
-                currentSlide = 0;
-            }
             updateSlider();
-        });
+            startAutoSlide();
+        }
 
-        updateCardsPerView();
-        createDots();
-        updateSlider();
-        startAutoSlide();
-
-        document.addEventListener('DOMContentLoaded', function() {
-            initMobileMenu();
-        });
-
-        // Mobile Menu Toggle Function
-        function initMobileMenu() {
+        // Mobile Menu Toggle Function - Execute immediately
+        (function initMobileMenu() {
             const hamburgerBtn = document.getElementById('hamburgerBtn');
             const navMenu = document.getElementById('navMenu');
             const navOverlay = document.getElementById('navOverlay');
+            
+            // CHECK FIRST if elements exist before querying further
+            if (!hamburgerBtn || !navMenu || !navOverlay) {
+                console.error('Mobile menu elements not found');
+                return;
+            }
+            
             const navLinks = navMenu.querySelectorAll('.nav-link');
             
-            // Toggle menue) {
-                e.preventDefault();
-                e.stopPropagation();
+            // Toggle menu
+            function toggleMenu() {
                 const isActive = navMenu.classList.toggle('active');
                 navOverlay.classList.toggle('active');
                 hamburgerBtn.classList.toggle('active');
                 hamburgerBtn.setAttribute('aria-expanded', isActive);
-                
-                // Prevent body scroll when menu is open
                 document.body.style.overflow = isActive ? 'hidden' : '';
             }
             
             // Close menu
-            function closeMenu(e) {
-                if (e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                }
+            function closeMenu() {
                 navMenu.classList.remove('active');
                 navOverlay.classList.remove('active');
                 hamburgerBtn.classList.remove('active');
@@ -2136,22 +2140,7 @@
                 document.body.style.overflow = '';
             }
             
-            // Fast mobile touch handling
-            let touchStartTime = 0;
-            hamburgerBtn.addEventListener('touchstart', (e) => {
-                touchStartTime = Date.now();
-                toggleMenu(e);
-            }, { passive: false });
-            
-            // Fallback for desktop/mouse
-            hamburgerBtn.addEventListener('click', (e) => {
-                // Prevent double trigger on mobile (touchstart already handled)
-                if (Date.now() - touchStartTime > 300) {
-                    toggleMenu(e);
-                }
-            });
-            
-            navOverlay.addEventListener('touchstart', closeMenu, { passive: false }
+            // Event listeners
             hamburgerBtn.addEventListener('click', toggleMenu);
             navOverlay.addEventListener('click', closeMenu);
             
@@ -2182,13 +2171,14 @@
                     }
                 }, 250);
             });
-        }
+        })(); // Execute immediately
 
         // Smooth Scroll Function with fixed header offset
         function smoothScrollTo(sectionId) {
             const section = document.getElementById(sectionId);
             if (section) {
-                const headerHeight = document.querySelector('.top-navigation').offsetHeight;
+                const header = document.querySelector('.top-navigation');
+                const headerHeight = header ? header.offsetHeight : 0;
                 const sectionTop = section.getBoundingClientRect().top + window.pageYOffset - headerHeight;
                 
                 window.scrollTo({
@@ -2205,6 +2195,12 @@
             const form = event.target;
             const submitBtn = document.getElementById('submitBtn');
             const formMessage = document.getElementById('formMessage');
+            
+            // CHECK if elements exist
+            if (!submitBtn || !formMessage) {
+                console.error('Contact form elements not found');
+                return;
+            }
             
             // Get form data
             const formData = {

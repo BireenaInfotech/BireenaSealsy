@@ -177,6 +177,11 @@
             padding: 0.5rem;
             z-index: 1001;
             transition: transform 0.3s ease;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+            position: relative;
+            min-width: 44px;
+            min-height: 44px;
         }
 
         .hamburger-menu:focus {
@@ -191,6 +196,8 @@
             background: linear-gradient(135deg, var(--accent-cyan), var(--primary-purple));
             border-radius: 3px;
             transition: all 0.3s ease;
+            pointer-events: none;
+            display: block;
         }
 
         .hamburger-menu.active .hamburger-line:nth-child(1) {
@@ -1500,6 +1507,12 @@
             const navMenu = document.getElementById('navMenu');
             const navOverlay = document.getElementById('navOverlay');
             
+            // Check if all required elements exist
+            if (!hamburgerBtn || !navMenu || !navOverlay) {
+                console.error('Mobile menu elements not found');
+                return;
+            }
+            
             function toggleMenu() {
                 hamburgerBtn.classList.toggle('active');
                 navMenu.classList.toggle('active');
@@ -1514,13 +1527,8 @@
                 document.body.style.overflow = '';
             }
             
-            if (hamburgerBtn) {
-                hamburgerBtn.addEventListener('click', toggleMenu);
-            }
-            
-            if (navOverlay) {
-                navOverlay.addEventListener('click', closeMenu);
-            }
+            hamburgerBtn.addEventListener('click', toggleMenu);
+            navOverlay.addEventListener('click', closeMenu);
             
             // Close menu when clicking nav links
             const navLinks = navMenu.querySelectorAll('a');
