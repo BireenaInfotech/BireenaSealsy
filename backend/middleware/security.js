@@ -24,10 +24,9 @@ const helmetConfig = helmet({
                 "'unsafe-eval'", // Required for some libraries
                 "https://cdn.jsdelivr.net",
                 "https://fonts.googleapis.com",
-                "https://vercel.live",
-                // Add nonce-based CSP in production
-                (req, res) => `'nonce-${res.locals.cspNonce}'`
+                "https://vercel.live"
             ],
+            scriptSrcAttr: ["'unsafe-inline'", "'unsafe-hashes'"], // Required for onclick handlers
             styleSrc: [
                 "'self'", 
                 "'unsafe-inline'",

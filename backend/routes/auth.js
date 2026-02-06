@@ -50,26 +50,19 @@ router.get('/pricing', (req, res) => {
 });
 
 router.get('/login', (req, res) => {
-    // SECURITY: Always clear session when explicitly visiting login page
-    // This prevents auto-login from old sessions and ensures fresh authentication
-    if (req.session.user) {
-        req.session.destroy((err) => {
-            if (err) console.error('Session destroy error on login page:', err);
-            // Clear all auth cookies
-            res.clearCookie('authToken', { path: '/' });
-            res.clearCookie('sessionId', { path: '/' });
-            res.clearCookie('connect.sid', { path: '/' });
-            // Render login page
-            res.render('login', {
-                user: null,
-                success_msg: 'Please login with your credentials'
-            });
-        });
-    } else {
-        res.render('login', {
-            user: null
-        });
+    // If user is already logged in, redirect to dashboard
+    if (req.session && req.session.user) {
+        if (req.session.user.role === 'admin') {
+            return res.redirect('/dashboard');
+        } else if (req.session.user.role === 'staff') {
+            return res.redirect('/dashboard');
+        }
     }
+    
+    // Render login page
+    res.render('login', {
+        user: null
+    });
 });
 
 // ==================== ADMIN LOGIN ====================
