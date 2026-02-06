@@ -4,12 +4,33 @@ const mongoose = require('mongoose');
 const session = require('express-session');
 const MongoStore = require('connect-mongo');
 const bodyParser = require('body-parser');
+const compression = require('compression');
 // Removed connect-flash to avoid util.isArray deprecation - using custom flash middleware instead
 const methodOverride = require('method-override');
 const cookieParser = require('cookie-parser');
 const path = require('path');
 const connectDB = require('./backend/config/database');
 const { addTimezoneToLocals } = require('./backend/utils/timezone');
+
+// 🔒 SECURITY MIDDLEWARE IMPORTS
+const {
+    helmetConfig,
+    globalLimiter,
+    sanitizeInput,
+    hppProtection,
+    cspNonceGenerator,
+    securityLogger,
+    sanitizeRequest,
+    noCache,
+    productionErrorHandler
+} = require('./backend/middleware/security');
+
+const {
+    forceHTTPS,
+    httpsSecurityHeaders,
+    preventOpenRedirect,
+    secureMethodOverride
+} = require('./backend/middleware/https-security');
 
 const app = express();
 
@@ -19,38 +40,42 @@ app.set('trust proxy', 1);
 // Disable x-powered-by header
 app.disable('x-powered-by');
 
-// Disable console.log in production for security
+// 🔒 PRODUCTION SECURITY: Disable console.log and error stack traces
 if (process.env.NODE_ENV === 'production') {
     console.log = function() {};
+    console.error = function() {};
+    console.warn = function() {};
 }
 
-// Security Headers with proper CSP for EJS templates
-app.use((req, res, next) => {
-    // Prevent clickjacking
-    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
-    // Prevent MIME type sniffing
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    // XSS Protection
-    res.setHeader('X-XSS-Protection', '1; mode=block');
-    // Content Security Policy - Secure but allowing EJS inline scripts
-    res.setHeader('Content-Security-Policy', 
-        "default-src 'self'; " +
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://fonts.googleapis.com https://vercel.live; " +
-        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; " +
-        "font-src 'self' https://cdn.jsdelivr.net https://fonts.gstatic.com data:; " +
-        "img-src 'self' data: https: blob:; " +
-        "connect-src 'self' https://cdn.jsdelivr.net https://vercel.live wss://ws-us3.pusher.com; " +
-        "frame-src 'self' https://vercel.live; " +
-        "object-src 'none'; " +
-        "base-uri 'self';"
-    );
-    // Disable client-side caching of sensitive data
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
-    res.setHeader('Pragma', 'no-cache');
-    // Remove server header
-    res.removeHeader('X-Powered-By');
-    next();
-});
+// 🔒 HTTPS ENFORCEMENT: Force HTTPS in production
+app.use(forceHTTPS);
+
+// 🔒 HTTPS SECURITY HEADERS: Additional HTTPS headers
+app.use(httpsSecurityHeaders);
+
+// 🔒 PREVENT OPEN REDIRECTS: Validate redirect URLs
+app.use(preventOpenRedirect);
+
+// 🔒 SECURE METHOD OVERRIDE: Prevent method override attacks
+app.use(secureMethodOverride);
+
+// 🔒 HELMET: Advanced Security Headers
+app.use(helmetConfig);
+
+// 🔒 GLOBAL RATE LIMITING: DDoS Protection
+app.use(globalLimiter);
+
+// 🔒 COMPRESSION: Gzip compression for better performance
+app.use(compression());
+
+// 🔒 CSP NONCE: Generate nonce for CSP
+app.use(cspNonceGenerator);
+
+// 🔒 SECURITY LOGGER: Log suspicious activities
+app.use(securityLogger);
+
+// 🔒 NO CACHE: Prevent caching of sensitive pages
+app.use(noCache);
 
 // Import routes
 const authRoutes = require('./backend/routes/auth');
@@ -82,8 +107,26 @@ app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'frontend/views'));
 app.use(express.static(path.join(__dirname, 'frontend/public')));
 app.use('/components', express.static(path.join(__dirname, 'frontend/components')));
-app.use(bodyParser.urlencoded({ extended: true }));
-app.use(bodyParser.json());
+
+// 🔒 BODY PARSER: Parse incoming requests with size limits
+app.use(bodyParser.urlencoded({ 
+    extended: true,
+    limit: '10mb', // Prevent large payload attacks
+    parameterLimit: 1000 // Limit number of parameters
+}));
+app.use(bodyParser.json({ 
+    limit: '10mb' // Prevent large JSON payload attacks
+}));
+
+// 🔒 MONGO SANITIZE: Prevent NoSQL injection
+app.use(sanitizeInput);
+
+// 🔒 HPP: HTTP Parameter Pollution Protection
+app.use(hppProtection);
+
+// 🔒 SANITIZE REQUEST: Clean all user inputs
+app.use(sanitizeRequest);
+
 app.use(methodOverride('_method'));
 app.use(cookieParser());
 
@@ -188,18 +231,25 @@ if (process.env.VERCEL !== '1') {
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (err) => {
-    console.error('Unhandled Promise Rejection:', err);
+    if (process.env.NODE_ENV !== 'production') {
+        console.error('Unhandled Promise Rejection:', err);
+    }
     // Don't exit the process
 });
 
 // Handle uncaught exceptions
 process.on('uncaughtException', (err) => {
-    console.error('Uncaught Exception:', err);
+    if (process.env.NODE_ENV !== 'production') {
+        console.error('Uncaught Exception:', err);
+    }
     // Don't exit the process in development
     if (process.env.NODE_ENV === 'production') {
         process.exit(1);
     }
 });
+
+// 🔒 PRODUCTION ERROR HANDLER: Hide error details in production
+app.use(productionErrorHandler);
 
 // Export for Vercel
 module.exports = app;

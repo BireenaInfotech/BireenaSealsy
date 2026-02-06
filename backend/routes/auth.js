@@ -5,6 +5,8 @@ const crypto = require('crypto');
 const User = require('../models/User');
 const { redirectIfAuthenticated, isAuthenticated, isAdmin } = require('../middleware/auth');
 const { ensureDBConnection } = require('../middleware/database');
+const { loginLimiter } = require('../middleware/security');
+const { validateLogin, handleValidationErrors } = require('../utils/validator');
 
 // Login page
 router.get('/', (req, res) => {
@@ -71,7 +73,7 @@ router.get('/login', (req, res) => {
 });
 
 // ==================== ADMIN LOGIN ====================
-router.post('/admin/login', ensureDBConnection, async (req, res) => {
+router.post('/admin/login', loginLimiter, validateLogin, handleValidationErrors, ensureDBConnection, async (req, res) => {
     try {
         const { username, password } = req.body;
 
@@ -223,7 +225,7 @@ router.post('/admin/login', ensureDBConnection, async (req, res) => {
 });
 
 // ==================== EMPLOYEE LOGIN ====================
-router.post('/employee/login', ensureDBConnection, async (req, res) => {
+router.post('/employee/login', loginLimiter, validateLogin, handleValidationErrors, ensureDBConnection, async (req, res) => {
     try {
         const { username, password } = req.body;
 
