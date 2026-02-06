@@ -168,7 +168,9 @@
             cursor: pointer;
             padding: 0.5rem;
             z-index: 1001;
-            transition: transform 0.3s ease;
+            transition: transform 0.2s ease;
+            touch-action: manipulation; /* Optimize touch response */
+            -webkit-tap-highlight-color: transparent; /* Remove tap highlight */
         }
 
         .hamburger-menu:focus {
@@ -182,7 +184,8 @@
             height: 3px;
             background: linear-gradient(135deg, var(--accent-cyan), var(--primary-purple));
             border-radius: 3px;
-            transition: all 0.3s ease;
+            transition: all 0.2s ease;
+            pointer-events: none; /* Prevent touch delay */
         }
 
         .hamburger-menu.active .hamburger-line:nth-child(1) {
@@ -1163,10 +1166,11 @@
                 flex-direction: column;
                 justify-content: flex-start;
                 padding: 2rem;
-                gap: 0;
-                transform: translateX(-100%);
-                transition: transform 0.3s ease;
+                gap: 0;25s cubic-bezier(0.4, 0, 0.2, 1); /* Faster smooth animation */
                 border-right: 1px solid rgba(124, 58, 237, 0.3);
+                overflow-y: auto;
+                box-shadow: 4px 0 20px rgba(0, 0, 0, 0.5);
+                will-change: transform; /* Hardware acceleration */ 0.3);
                 overflow-y: auto;
                 box-shadow: 4px 0 20px rgba(0, 0, 0, 0.5);
             }
@@ -2107,8 +2111,9 @@
             const navOverlay = document.getElementById('navOverlay');
             const navLinks = navMenu.querySelectorAll('.nav-link');
             
-            // Toggle menu
-            function toggleMenu() {
+            // Toggle menue) {
+                e.preventDefault();
+                e.stopPropagation();
                 const isActive = navMenu.classList.toggle('active');
                 navOverlay.classList.toggle('active');
                 hamburgerBtn.classList.toggle('active');
@@ -2119,7 +2124,11 @@
             }
             
             // Close menu
-            function closeMenu() {
+            function closeMenu(e) {
+                if (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
                 navMenu.classList.remove('active');
                 navOverlay.classList.remove('active');
                 hamburgerBtn.classList.remove('active');
@@ -2127,7 +2136,22 @@
                 document.body.style.overflow = '';
             }
             
-            // Event listeners
+            // Fast mobile touch handling
+            let touchStartTime = 0;
+            hamburgerBtn.addEventListener('touchstart', (e) => {
+                touchStartTime = Date.now();
+                toggleMenu(e);
+            }, { passive: false });
+            
+            // Fallback for desktop/mouse
+            hamburgerBtn.addEventListener('click', (e) => {
+                // Prevent double trigger on mobile (touchstart already handled)
+                if (Date.now() - touchStartTime > 300) {
+                    toggleMenu(e);
+                }
+            });
+            
+            navOverlay.addEventListener('touchstart', closeMenu, { passive: false }
             hamburgerBtn.addEventListener('click', toggleMenu);
             navOverlay.addEventListener('click', closeMenu);
             
