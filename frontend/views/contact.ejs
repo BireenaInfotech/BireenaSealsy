@@ -218,6 +218,11 @@
             padding: 0.5rem;
             z-index: 1001;
             transition: transform 0.3s ease;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+            position: relative;
+            min-width: 44px;
+            min-height: 44px;
         }
 
         .hamburger-menu:focus {
@@ -232,6 +237,8 @@
             background: linear-gradient(135deg, var(--accent-cyan), var(--primary-purple));
             border-radius: 3px;
             transition: all 0.3s ease;
+            pointer-events: none;
+            display: block;
         }
 
         .hamburger-menu.active .hamburger-line:nth-child(1) {
@@ -1064,9 +1071,6 @@
     <!-- Navigation Overlay -->
     <div class="nav-overlay" id="navOverlay" aria-hidden="true"></div>
     
-    <!-- Navigation Overlay (for mobile) -->
-    <div class="nav-overlay" id="navOverlay" aria-hidden="true"></div>
-    
     <!-- Navbar -->
     <header class="top-navigation" role="banner">
         <div class="nav-container">
@@ -1344,6 +1348,13 @@
             const hamburgerBtn = document.getElementById('hamburgerBtn');
             const navMenu = document.getElementById('navMenu');
             const navOverlay = document.getElementById('navOverlay');
+            
+            // Check if all required elements exist
+            if (!hamburgerBtn || !navMenu || !navOverlay) {
+                console.error('Mobile menu elements not found');
+                return;
+            }
+            
             const navLinks = navMenu.querySelectorAll('.nav-link');
             
             function toggleMenu() {
