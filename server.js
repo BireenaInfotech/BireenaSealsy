@@ -131,19 +131,27 @@ app.use(methodOverride('_method'));
 app.use(cookieParser());
 
 // Session configuration with MongoDB store for persistent sessions (production-ready)
-const sessionStore = MongoStore.create({
-    mongoUrl: process.env.MONGODB_URI,
-    touchAfter: 24 * 3600, // Lazy session update (24 hours)
-    ttl: 24 * 60 * 60, // Session TTL in seconds (24 hours)
-    autoRemove: 'native',
-    collectionName: 'sessions',
-    stringify: false // Don't stringify session data
-});
-
-// Log store errors
-sessionStore.on('error', function(error) {
-    console.error('Session store error:', error);
-});
+let sessionStore;
+try {
+    if (!process.env.MONGODB_URI) {
+        throw new Error('MONGODB_URI not set - using memory store');
+    }
+    sessionStore = MongoStore.create({
+        mongoUrl: process.env.MONGODB_URI,
+        touchAfter: 24 * 3600, // Lazy session update (24 hours)
+        ttl: 24 * 60 * 60, // Session TTL in seconds (24 hours)
+        autoRemove: 'native',
+        collectionName: 'sessions',
+        stringify: false // Don't stringify session data
+    });
+    // Log store errors
+    sessionStore.on('error', function(error) {
+        console.error('Session store error:', error);
+    });
+} catch (e) {
+    console.error('⚠️ MongoStore init failed, using memory session store:', e.message);
+    sessionStore = undefined; // express-session uses memory store when undefined
+}
 
 const sessionConfig = {
     secret: process.env.SESSION_SECRET || 'fallback-secret-key-change-in-production',
@@ -243,15 +251,10 @@ process.on('unhandledRejection', (err) => {
     // Don't exit the process
 });
 
-// Handle uncaught exceptions
+// Handle uncaught exceptions - NEVER exit in serverless (Vercel)
 process.on('uncaughtException', (err) => {
-    if (process.env.NODE_ENV !== 'production') {
-        console.error('Uncaught Exception:', err);
-    }
-    // Don't exit the process in development
-    if (process.env.NODE_ENV === 'production') {
-        process.exit(1);
-    }
+    console.error('Uncaught Exception:', err.message);
+    // Do NOT call process.exit() - Vercel serverless must stay alive
 });
 
 // Only start server if not in Vercel environment
