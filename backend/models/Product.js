@@ -22,10 +22,19 @@ const productSchema = new mongoose.Schema({
         default: 0,
         min: 0
     },
+    trackStock: {
+        type: Boolean,
+        default: true
+    },
     unit: {
         type: String,
         default: 'piece',
-        enum: ['piece', 'kg', 'dozen', 'box']
+        enum: ['piece', 'kg', 'gms', 'dozen', 'box']
+    },
+    gramAmount: {
+        type: Number,
+        default: 0,
+        min: 0
     },
     reorderLevel: {
         type: Number,
@@ -60,6 +69,17 @@ const productSchema = new mongoose.Schema({
         min: 0
     },
     sellingPrice: {
+        type: Number,
+        default: 0,
+        min: 0
+    },
+    // 🎂 CAKE-SPECIFIC PRICING
+    halfKgPrice: {
+        type: Number,
+        default: 0,
+        min: 0
+    },
+    oneKgPrice: {
         type: Number,
         default: 0,
         min: 0

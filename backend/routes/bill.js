@@ -35,7 +35,10 @@ router.get('/:id', isAuthenticated, async (req, res) => {
         const shopInfo = {
             shopName: admin?.shopName || 'Bireena Bakery',
             shopGST: admin?.shopGST || '',
-            shopAddress: admin?.shopAddress || ''
+            shopAddress: admin?.shopAddress || '',
+            shopLogo: admin?.shopLogo || '',
+            shopQRCode: admin?.shopQRCode || '',
+            billFooterText: admin?.billFooterText || 'This is a computer-generated bill'
         };
         
         // Format date/time for display in IST
@@ -80,7 +83,10 @@ router.get('/print/:id', isAuthenticated, async (req, res) => {
         const shopInfo = {
             shopName: admin?.shopName || 'Bireena Bakery',
             shopGST: admin?.shopGST || '',
-            shopAddress: admin?.shopAddress || ''
+            shopAddress: admin?.shopAddress || '',
+            shopLogo: admin?.shopLogo || '',
+            shopQRCode: admin?.shopQRCode || '',
+            billFooterText: admin?.billFooterText || 'This is a computer-generated bill'
         };
         
         // Format date/time for display in IST

@@ -3,6 +3,44 @@ const router = express.Router();
 const User = require('../models/User');
 const bcrypt = require('bcryptjs');
 const { isAuthenticated, isAdmin } = require('../middleware/auth');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+
+// Create uploads directory if it doesn't exist
+const uploadsDir = path.join(__dirname, '../../frontend/public/uploads');
+if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+    destination: function(req, file, cb) {
+        cb(null, uploadsDir);
+    },
+    filename: function(req, file, cb) {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+    }
+});
+
+const upload = multer({
+    storage: storage,
+    limits: {
+        fileSize: 5 * 1024 * 1024 // 5MB max file size
+    },
+    fileFilter: function(req, file, cb) {
+        const allowedTypes = /jpeg|jpg|png|gif/;
+        const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+        const mimetype = allowedTypes.test(file.mimetype);
+        
+        if (mimetype && extname) {
+            return cb(null, true);
+        } else {
+            cb(new Error('Only image files (JPEG, JPG, PNG, GIF) are allowed!'));
+        }
+    }
+});
 
 // Profile view page
 router.get('/', isAuthenticated, async (req, res) => {
@@ -49,9 +87,12 @@ router.get('/edit', isAuthenticated, async (req, res) => {
 });
 
 // Update profile
-router.post('/update', isAuthenticated, async (req, res) => {
+router.post('/update', isAuthenticated, upload.fields([
+    { name: 'shopLogo', maxCount: 1 },
+    { name: 'shopQRCode', maxCount: 1 }
+]), async (req, res) => {
     try {
-        const { fullName, email, phone, shopName, shopGST, shopAddress } = req.body;
+        const { fullName, email, phone, shopName, shopGST, shopAddress, billFooterText } = req.body;
 
         // Validate required fields
         if (!fullName || !email) {
@@ -86,6 +127,9 @@ router.post('/update', isAuthenticated, async (req, res) => {
             return res.redirect('/profile/edit');
         }
 
+        // Get current user to access existing logo/QR paths
+        const currentUser = await User.findById(req.session.user.id);
+
         // Update user profile
         const updateData = {
             fullName: fullName.trim(),
@@ -94,8 +138,33 @@ router.post('/update', isAuthenticated, async (req, res) => {
             shopName: shopName && shopName.trim() !== '' ? shopName.trim() : null,
             shopGST: shopGST && shopGST.trim() !== '' ? shopGST.trim() : null,
             shopAddress: shopAddress && shopAddress.trim() !== '' ? shopAddress.trim() : null,
+            billFooterText: billFooterText && billFooterText.trim() !== '' ? billFooterText.trim() : 'This is a computer-generated bill',
             updatedAt: Date.now()
         };
+
+        // Handle logo upload
+        if (req.files && req.files.shopLogo) {
+            // Delete old logo if exists
+            if (currentUser.shopLogo) {
+                const oldLogoPath = path.join(uploadsDir, path.basename(currentUser.shopLogo));
+                if (fs.existsSync(oldLogoPath)) {
+                    fs.unlinkSync(oldLogoPath);
+                }
+            }
+            updateData.shopLogo = '/uploads/' + req.files.shopLogo[0].filename;
+        }
+
+        // Handle QR code upload
+        if (req.files && req.files.shopQRCode) {
+            // Delete old QR code if exists
+            if (currentUser.shopQRCode) {
+                const oldQRPath = path.join(uploadsDir, path.basename(currentUser.shopQRCode));
+                if (fs.existsSync(oldQRPath)) {
+                    fs.unlinkSync(oldQRPath);
+                }
+            }
+            updateData.shopQRCode = '/uploads/' + req.files.shopQRCode[0].filename;
+        }
 
         const updatedUser = await User.findByIdAndUpdate(
             req.session.user.id,

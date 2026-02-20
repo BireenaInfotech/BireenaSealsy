@@ -138,7 +138,8 @@ router.post('/add', isAuthenticated, async (req, res) => {
             name, category, price, purchasePrice, sellingPrice, stock, unit, 
             reorderLevel, description, image, mfgDate, expiryDate, supplierName, 
             supplierContact, batchNumber, branch, hsnCode,
-            totalPurchaseAmount, amountPaid, paymentMethod, paymentNotes
+            totalPurchaseAmount, amountPaid, paymentMethod, paymentNotes, trackStock,
+            halfKgPrice, oneKgPrice, gramAmount
         } = req.body;
 
         // 🎯 Calculate expirySoon status
@@ -172,8 +173,12 @@ router.post('/add', isAuthenticated, async (req, res) => {
             price: parseFloat(price || sellingPrice || 0),
             purchasePrice: parseFloat(purchasePrice || 0),
             sellingPrice: parseFloat(sellingPrice || price || 0),
-            stock: parseInt(stock || 0),
+            halfKgPrice: parseFloat(halfKgPrice || 0),
+            oneKgPrice: parseFloat(oneKgPrice || 0),
+            trackStock: trackStock === 'false' ? false : true,
+            stock: trackStock === 'false' ? 0 : parseInt(stock || 0),
             unit,
+            gramAmount: parseInt(gramAmount || 0),
             reorderLevel: parseInt(reorderLevel || 10),
             description,
             image: image || '',
@@ -281,8 +286,12 @@ router.post('/add-bulk', isAuthenticated, async (req, res) => {
                     price: parseFloat(productData.sellingPrice || 0),
                     purchasePrice: parseFloat(productData.purchasePrice || 0),
                     sellingPrice: parseFloat(productData.sellingPrice || 0),
-                    stock: parseInt(productData.stock || 0),
+                    halfKgPrice: parseFloat(productData.halfKgPrice || 0),
+                    oneKgPrice: parseFloat(productData.oneKgPrice || 0),
+                    trackStock: productData.trackStock === 'false' ? false : true,
+                    stock: productData.trackStock === 'false' ? 0 : parseInt(productData.stock || 0),
                     unit: productData.unit || 'piece',
+                    gramAmount: parseInt(productData.gramAmount || 0),
                     reorderLevel: 10,
                     description: '',
                     image: productData.image || '',
@@ -381,7 +390,8 @@ router.post('/edit/:id', isAuthenticated, async (req, res) => {
         const { 
             name, category, price, purchasePrice, sellingPrice, stock, unit, 
             reorderLevel, description, mfgDate, expiryDate, supplierName, 
-            supplierContact, batchNumber, branch, hsnCode
+            supplierContact, batchNumber, branch, hsnCode, halfKgPrice, oneKgPrice,
+            gramAmount
         } = req.body;
 
         const oldProduct = await Product.findById(req.params.id);
@@ -401,8 +411,11 @@ router.post('/edit/:id', isAuthenticated, async (req, res) => {
             price: parseFloat(price || sellingPrice || 0),
             purchasePrice: parseFloat(purchasePrice || 0),
             sellingPrice: parseFloat(sellingPrice || price || 0),
+            halfKgPrice: parseFloat(halfKgPrice || 0),
+            oneKgPrice: parseFloat(oneKgPrice || 0),
             stock: parseInt(stock || 0),
             unit,
+            gramAmount: parseInt(gramAmount || 0),
             reorderLevel: parseInt(reorderLevel || 10),
             description,
             mfgDate: mfgDate || null,

@@ -59,7 +59,7 @@
                     </div>
                 <% } %>
 
-                <form action="/profile/update" method="POST">
+                <form action="/profile/update" method="POST" enctype="multipart/form-data">
                     <!-- Personal Information -->
                     <div class="form-card">
                         <h4 class="mb-4">
@@ -119,6 +119,66 @@
                             <textarea class="form-control" name="shopAddress" rows="3" 
                                       placeholder="Enter complete shop address"><%= user.shopAddress || '' %></textarea>
                         </div>
+
+                        <hr class="my-4">
+                        
+                        <h5 class="mb-3">
+                            <i class="bi bi-image"></i> Bill Branding
+                        </h5>
+
+                        <div class="mb-3">
+                            <label class="form-label">
+                                <i class="bi bi-file-image"></i> Shop Logo
+                            </label>
+                            <% if (user.shopLogo) { %>
+                                <div class="mb-2">
+                                    <img src="<%= user.shopLogo %>" alt="Shop Logo" style="max-width: 150px; max-height: 150px; border: 2px solid #ddd; border-radius: 8px; padding: 5px;">
+                                    <p class="text-muted small mt-1">Current logo - Upload new to replace</p>
+                                </div>
+                            <% } %>
+                            <input type="file" class="form-control" name="shopLogo" id="shopLogo" accept="image/*">
+                            <small class="text-muted">Upload your shop logo (Max 5MB, JPG/PNG/GIF) - Will appear on bills</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">
+                                <i class="bi bi-qr-code"></i> Shop QR Code
+                            </label>
+                            <% if (user.shopQRCode) { %>
+                                <div class="mb-2">
+                                    <img src="<%= user.shopQRCode %>" alt="Shop QR Code" style="max-width: 150px; max-height: 150px; border: 2px solid #ddd; border-radius: 8px; padding: 5px;">
+                                    <p class="text-muted small mt-1">Current QR code - Upload new to replace</p>
+                                </div>
+                            <% } %>
+                            <input type="file" class="form-control" name="shopQRCode" id="shopQRCode" accept="image/*">
+                            <small class="text-muted">Upload QR code (Max 5MB, JPG/PNG/GIF) - For UPI payments, contact info, etc. - Will appear on bills</small>
+                        </div>
+
+                        <hr class="my-4">
+                        
+                        <h5 class="mb-3">
+                            <i class="bi bi-file-text"></i> Bill Footer Customization
+                        </h5>
+
+                        <div class="mb-3">
+                            <label class="form-label">
+                                <i class="bi bi-chat-quote"></i> Bill Footer Text
+                            </label>
+                            <textarea class="form-control" name="billFooterText" rows="2" 
+                                      maxlength="200"
+                                      placeholder="e.g., Visit us at www.myshop.com | Follow us on Instagram @myshop"><%= user.billFooterText || 'This is a computer-generated bill' %></textarea>
+                            <small class="text-muted">
+                                <i class="bi bi-info-circle"></i> This text will appear at the bottom of every bill. You can add your website, social media, or any custom message (Max 200 characters)
+                            </small>
+                            <div class="mt-2">
+                                <span class="badge bg-info">Examples:</span>
+                                <ul class="small text-muted mt-2">
+                                    <li>Visit www.myshop.com for online orders</li>
+                                    <li>Follow us on Instagram: @myshop | WhatsApp: 9876543210</li>
+                                    <li>This is a computer-generated bill | No signature required</li>
+                                </ul>
+                            </div>
+                        </div>
                     </div>
                     <% } %>
 
@@ -146,6 +206,55 @@
                 if (this.value.length > 10) {
                     this.value = this.value.slice(0, 10);
                 }
+            });
+        }
+
+        // File upload validation
+        const logoInput = document.getElementById('shopLogo');
+        const qrInput = document.getElementById('shopQRCode');
+
+        function validateFileUpload(input) {
+            if (input.files && input.files[0]) {
+                const file = input.files[0];
+                const fileSize = file.size / 1024 / 1024; // in MB
+                const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+
+                if (!allowedTypes.includes(file.type)) {
+                    alert('⚠️ Only image files (JPEG, JPG, PNG, GIF) are allowed!');
+                    input.value = '';
+                    return false;
+                }
+
+                if (fileSize > 5) {
+                    alert('⚠️ File size must be less than 5MB!');
+                    input.value = '';
+                    return false;
+                }
+
+                // Show preview
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const preview = input.previousElementSibling;
+                    if (preview && preview.classList.contains('mb-2')) {
+                        const img = preview.querySelector('img');
+                        if (img) {
+                            img.src = e.target.result;
+                        }
+                    }
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        if (logoInput) {
+            logoInput.addEventListener('change', function() {
+                validateFileUpload(this);
+            });
+        }
+
+        if (qrInput) {
+            qrInput.addEventListener('change', function() {
+                validateFileUpload(this);
             });
         }
 

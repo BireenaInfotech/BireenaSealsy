@@ -28,7 +28,7 @@
                     </div>
                     <div class="card-body">
                         <!-- SINGLE PRODUCT FORM -->
-                        <form action="/inventory/add" method="POST" id="singleProductForm" onsubmit="return validateSingleForm()">
+                        <form action="/inventory/add" method="POST" id="singleProductForm" onsubmit="return validateSingleForm()" novalidate>
                             
                             <!-- ðŸ“¦ BASIC INFORMATION -->
                             <div class="card mb-3">
@@ -65,16 +65,16 @@
                                 <div class="card-body">
                                     <div class="row">
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">Purchase Price (&#8377;) *</label>
-                                            <input type="number" class="form-control" name="purchasePrice" id="purchasePrice" step="0.01" min="0.01" required>
-                                            <small class="text-muted">Cost per unit</small>
+                                            <label class="form-label">Purchase Price (&#8377;)</label>
+                                            <input type="number" class="form-control" name="purchasePrice" id="purchasePrice" step="0.01" min="0">
+                                            <small class="text-muted">Cost per unit (optional)</small>
                                         </div>
-                                        <div class="col-md-4 mb-3">
-                                            <label class="form-label">Selling Price (&#8377;) *</label>
-                                            <input type="number" class="form-control" name="sellingPrice" id="sellingPrice" step="0.01" min="0.01" required>
+                                        <div class="col-md-4 mb-3" id="sellingPriceContainer">
+                                            <label class="form-label" id="sellingPriceLabel">Selling Price (&#8377;) *</label>
+                                            <input type="number" class="form-control" name="sellingPrice" id="sellingPrice" step="0.01" min="0.01">
                                             <small class="text-muted">Retail price</small>
                                         </div>
-                                        <div class="col-md-4 mb-3">
+                                        <div class="col-md-4 mb-3" id="profitContainer">
                                             <label class="form-label">Profit Per Item</label>
                                             <div class="input-group">
                                                 <span class="input-group-text">&#8377;</span>
@@ -83,8 +83,29 @@
                                             <small id="profitPercentage" class="text-success"></small>
                                         </div>
                                     </div>
+                                    
+                                    <!-- 🎂 CAKE-SPECIFIC PRICING (Hidden by default) -->
+                                    <div class="row" id="cakePricingSection" style="display: none; border-top: 2px solid #ec4899; padding-top: 15px; margin-top: 10px;">
+                                        <div class="col-12 mb-2">
+                                            <h6 class="text-primary"><i class="bi bi-cake2"></i> Cake Weight-Based Pricing</h6>
+                                            <small class="text-muted">Set different prices for different weights</small>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label">Half Kg Price (₹) *</label>
+                                            <input type="number" class="form-control" name="halfKgPrice" id="halfKgPrice" step="0.01" min="0" placeholder="0.00">
+                                            <small class="text-muted">Price for 0.5 kg cake</small>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label">One Kg Price (₹) *</label>
+                                            <input type="number" class="form-control" name="oneKgPrice" id="oneKgPrice" step="0.01" min="0" placeholder="0.00">
+                                            <small class="text-muted">Price for 1 kg cake</small>
+                                        </div>
+                                    </div>
+                                    
                                     <!-- Hidden field for backward compatibility -->
                                     <input type="hidden" name="price" id="price">
+                                    <!-- Hidden field for stock tracking control -->
+                                    <input type="hidden" name="trackStock" id="trackStock" value="true">
                                 </div>
                             </div>
 
@@ -97,16 +118,33 @@
                                     <div class="row">
                                         <div class="col-md-4 mb-3">
                                             <label class="form-label">Initial Stock Quantity *</label>
-                                            <input type="number" class="form-control" name="stock" min="0" required>
+                                            <input type="number" class="form-control" name="stock" id="stockInput" min="0" required>
+                                            
+                                            <!-- Toggle for disabling stock tracking -->
+                                            <div class="form-check form-switch mt-2">
+                                                <input class="form-check-input" type="checkbox" id="disableStockToggle" style="cursor: pointer;">
+                                                <label class="form-check-label" for="disableStockToggle" style="cursor: pointer; font-size: 0.9rem;">
+                                                    Disable Stock Tracking (Made to Order)
+                                                </label>
+                                            </div>
+                                            <small class="text-info" id="stockStatusNote" style="display: none;">
+                                                <i class="bi bi-info-circle"></i> Stock tracking disabled - can sell unlimited quantity
+                                            </small>
                                         </div>
                                         <div class="col-md-4 mb-3">
                                             <label class="form-label">Unit *</label>
-                                            <select class="form-select" name="unit" required>
+                                            <select class="form-select" name="unit" id="unitSelect" required>
                                                 <option value="piece">Piece</option>
                                                 <option value="kg">Kilogram (kg)</option>
+                                                <option value="gms">Grams (gms)</option>
                                                 <option value="dozen">Dozen</option>
                                                 <option value="box">Box</option>
                                             </select>
+                                        </div>
+                                        <div class="col-md-4 mb-3" id="gramAmountContainer" style="display: none;">
+                                            <label class="form-label">Gram Amount *</label>
+                                            <input type="number" class="form-control" name="gramAmount" id="gramAmount" min="1" step="1" placeholder="e.g., 250">
+                                            <small class="text-muted">Amount in grams</small>
                                         </div>
                                         <div class="col-md-4 mb-3">
                                             <label class="form-label">Reorder Level</label>
@@ -176,15 +214,21 @@
 
                             <!-- ðŸ’° PAYMENT DETAILS -->
                             <div class="card mb-3">
-                                <div class="card-header bg-light">
+                                <div class="card-header bg-light d-flex justify-content-between align-items-center">
                                     <h6 class="mb-0"><i class="bi bi-credit-card"></i> Payment Details for Supplier</h6>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="disablePaymentToggle" style="cursor: pointer;">
+                                        <label class="form-check-label" for="disablePaymentToggle" style="cursor: pointer; font-size: 0.9rem;">
+                                            Skip Payment Details
+                                        </label>
+                                    </div>
                                 </div>
-                                <div class="card-body">
+                                <div class="card-body" id="paymentDetailsSection">
                                     <div class="row">
                                         <div class="col-md-4 mb-3">
                                             <label class="form-label">Total Purchase Amount (&#8377;)</label>
-                                            <input type="number" class="form-control" name="totalPurchaseAmount" id="totalPurchaseAmount" min="0" step="0.01" placeholder="0.00">
-                                            <small class="text-muted">Total amount to pay supplier</small>
+                                            <input type="number" class="form-control bg-light" name="totalPurchaseAmount" id="totalPurchaseAmount" min="0" step="0.01" placeholder="0.00" readonly style="font-weight: bold;">
+                                            <small class="text-muted">Auto-calculated (Stock × Purchase Price)</small>
                                         </div>
                                         <div class="col-md-4 mb-3">
                                             <label class="form-label">Amount Paid Now (&#8377;)</label>
@@ -275,10 +319,16 @@
 
                             <!-- SHARED SUPPLIER + PAYMENT CARD -->
                             <div class="card mb-4" style="border: 2px solid #6366f1;">
-                                <div class="card-header py-2" style="background: linear-gradient(135deg,#6366f1,#764ba2); color: white;">
+                                <div class="card-header py-2" style="background: linear-gradient(135deg,#6366f1,#764ba2); color: white; display: flex; justify-content: space-between; align-items: center;">
                                     <span style="font-weight:700;"><i class="bi bi-truck"></i> Supplier & Payment Details <small style="font-weight:400;opacity:0.85;">(shared for all products)</small></span>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="bulkDisablePaymentToggle" style="cursor: pointer; background-color: white;">
+                                        <label class="form-check-label" for="bulkDisablePaymentToggle" style="cursor: pointer; font-size: 0.9rem; color: white;">
+                                            Skip Payment Details
+                                        </label>
+                                    </div>
                                 </div>
-                                <div class="card-body">
+                                <div class="card-body" id="bulkPaymentDetailsSection">
                                     <div class="row mb-2">
                                         <div class="col-md-4 mb-2">
                                             <label class="form-label fw-semibold">Supplier Name</label>
@@ -304,8 +354,8 @@
                                     <div class="row mb-2">
                                         <div class="col-md-4 mb-2">
                                             <label class="form-label fw-semibold">Total Purchase Amount (&#8377;)</label>
-                                            <input type="number" class="form-control" id="bulkTotalPurchase" min="0" step="0.01" placeholder="0.00" oninput="calcBulkPayment()">
-                                            <small class="text-muted">Total to pay supplier</small>
+                                            <input type="number" class="form-control bg-light" id="bulkTotalPurchase" min="0" step="0.01" placeholder="0.00" readonly style="font-weight: bold;">
+                                            <small class="text-muted">Auto-calculated from products</small>
                                         </div>
                                         <div class="col-md-4 mb-2">
                                             <label class="form-label fw-semibold">Amount Paid Now (&#8377;)</label>
@@ -406,14 +456,14 @@
                     '<!-- Pricing -->' +
                     '<div class="row mb-2">' +
                         '<div class="col-md-4 mb-2">' +
-                            '<label class="form-label fw-semibold">Purchase Price (&#8377;) *</label>' +
-                            '<input type="number" class="form-control" data-field="purchasePrice" step="0.01" min="0.01" placeholder="0.00" required>' +
+                            '<label class="form-label fw-semibold">Purchase Price (&#8377;)</label>' +
+                            '<input type="number" class="form-control" data-field="purchasePrice" step="0.01" min="0" placeholder="0.00">' +
                         '</div>' +
-                        '<div class="col-md-4 mb-2">' +
+                        '<div class="col-md-4 mb-2" data-field="sellingPriceContainer">' +
                             '<label class="form-label fw-semibold">Selling Price (&#8377;) *</label>' +
-                            '<input type="number" class="form-control" data-field="sellingPrice" step="0.01" min="0.01" placeholder="0.00" required>' +
+                            '<input type="number" class="form-control" data-field="sellingPrice" step="0.01" min="0.01" placeholder="0.00">' +
                         '</div>' +
-                        '<div class="col-md-4 mb-2">' +
+                        '<div class="col-md-4 mb-2" data-field="profitContainer">' +
                             '<label class="form-label fw-semibold">Profit Per Item</label>' +
                             '<div class="input-group">' +
                                 '<span class="input-group-text">&#8377;</span>' +
@@ -422,22 +472,47 @@
                         '</div>' +
                     '</div>' +
 
+                    '<!-- Cake-Specific Pricing (Hidden by default) -->' +
+                    '<div class="row mb-2" data-field="cakePricingRow" style="display: none; border-top: 2px solid #ec4899; padding-top: 10px;">' +
+                        '<div class="col-12 mb-1">' +
+                            '<small class="text-primary fw-semibold"><i class="bi bi-cake2"></i> Cake Weight-Based Pricing</small>' +
+                        '</div>' +
+                        '<div class="col-md-6 mb-2">' +
+                            '<label class="form-label fw-semibold">Half Kg Price (₹) *</label>' +
+                            '<input type="number" class="form-control" data-field="halfKgPrice" step="0.01" min="0" placeholder="0.00">' +
+                        '</div>' +
+                        '<div class="col-md-6 mb-2">' +
+                            '<label class="form-label fw-semibold">One Kg Price (₹) *</label>' +
+                            '<input type="number" class="form-control" data-field="oneKgPrice" step="0.01" min="0" placeholder="0.00">' +
+                        '</div>' +
+                    '</div>' +
+
                     '<!-- Stock -->' +
                     '<div class="row mb-2">' +
                         '<div class="col-md-4 mb-2">' +
                             '<label class="form-label fw-semibold">Stock Qty *</label>' +
                             '<input type="number" class="form-control" data-field="stock" min="0" value="0" required>' +
+                            '<div class="form-check form-switch mt-1">' +
+                                '<input class="form-check-input" type="checkbox" data-field="disableStockToggle">' +
+                                '<label class="form-check-label" style="font-size:0.85rem;">Disable Stock Tracking</label>' +
+                            '</div>' +
+                            '<input type="hidden" data-field="trackStock" value="true">' +
                         '</div>' +
                         '<div class="col-md-4 mb-2">' +
                             '<label class="form-label fw-semibold">Unit *</label>' +
                             '<select class="form-select" data-field="unit" required>' +
                                 '<option value="piece">Piece</option>' +
                                 '<option value="kg">Kilogram (kg)</option>' +
+                                '<option value="gms">Grams (gms)</option>' +
                                 '<option value="dozen">Dozen</option>' +
                                 '<option value="box">Box</option>' +
                             '</select>' +
                         '</div>' +
-                        '<div class="col-md-4 mb-2">' +
+                        '<div class="col-md-4 mb-2" data-field="gramAmountContainer" style="display: none;">' +
+                            '<label class="form-label fw-semibold">Gram Amount *</label>' +
+                            '<input type="number" class="form-control" data-field="gramAmount" min="1" step="1" placeholder="e.g., 250">' +
+                        '</div>' +
+                        '<div class="col-md-4 mb-2" data-field="batchNumberContainer">' +
                             '<label class="form-label fw-semibold">Batch Number</label>' +
                             '<input type="text" class="form-control" data-field="batchNumber" placeholder="Optional">' +
                         '</div>' +
@@ -473,11 +548,132 @@
                 '</div>';
 
             // Auto profit calc for this card
-            card.querySelector('[data-field="purchasePrice"]').addEventListener('input', function() { calcBulkProfit(card); });
+            card.querySelector('[data-field="purchasePrice"]').addEventListener('input', function() { 
+                calcBulkProfit(card); 
+                calcBulkTotalPurchaseAmount();
+            });
             card.querySelector('[data-field="sellingPrice"]').addEventListener('input', function() { calcBulkProfit(card); });
+            
+            // Auto-calculate total purchase amount when stock changes
+            card.querySelector('[data-field="stock"]').addEventListener('input', function() {
+                calcBulkTotalPurchaseAmount();
+            });
+            
+            // Stock tracking toggle for bulk
+            var disableStockToggle = card.querySelector('[data-field="disableStockToggle"]');
+            var stockInput = card.querySelector('[data-field="stock"]');
+            var trackStockInput = card.querySelector('[data-field="trackStock"]');
+            
+            if (disableStockToggle && stockInput && trackStockInput) {
+                disableStockToggle.addEventListener('change', function() {
+                    if (this.checked) {
+                        stockInput.value = '0';
+                        stockInput.setAttribute('readonly', true);
+                        stockInput.setAttribute('disabled', true);
+                        stockInput.style.backgroundColor = '#f8f9fa';
+                        trackStockInput.value = 'false';
+                    } else {
+                        stockInput.removeAttribute('readonly');
+                        stockInput.removeAttribute('disabled');
+                        stockInput.style.backgroundColor = '';
+                        stockInput.value = '';
+                        trackStockInput.value = 'true';
+                    }
+                    calcBulkTotalPurchaseAmount();
+                });
+            }
+
+            // Category detection for cake pricing in bulk
+            var categoryInput = card.querySelector('[data-field="category"]');
+            var cakePricingRow = card.querySelector('[data-field="cakePricingRow"]');
+            var halfKgPriceInput = card.querySelector('[data-field="halfKgPrice"]');
+            var oneKgPriceInput = card.querySelector('[data-field="oneKgPrice"]');
+            var sellingPriceInput = card.querySelector('[data-field="sellingPrice"]');
+            var sellingPriceContainer = card.querySelector('[data-field="sellingPriceContainer"]');
+            var profitContainer = card.querySelector('[data-field="profitContainer"]');
+            
+            if (categoryInput && cakePricingRow) {
+                categoryInput.addEventListener('input', function() {
+                    var category = this.value.trim().toLowerCase();
+                    
+                    if (category === 'cake' || category.includes('cake')) {
+                        // Show cake pricing
+                        cakePricingRow.style.display = 'flex';
+                        if (halfKgPriceInput) halfKgPriceInput.setAttribute('required', 'required');
+                        if (oneKgPriceInput) oneKgPriceInput.setAttribute('required', 'required');
+                        
+                        // Hide selling price and profit for cake category
+                        if (sellingPriceContainer) {
+                            sellingPriceContainer.style.display = 'none';
+                            if (sellingPriceInput) {
+                                sellingPriceInput.removeAttribute('required');
+                                sellingPriceInput.value = '0';
+                            }
+                        }
+                        if (profitContainer) {
+                            profitContainer.style.display = 'none';
+                        }
+                        
+                        // Auto-enable stock tracking toggle
+                        if (disableStockToggle && !disableStockToggle.checked) {
+                            disableStockToggle.checked = true;
+                            disableStockToggle.dispatchEvent(new Event('change'));
+                        }
+                    } else {
+                        // Hide cake pricing
+                        cakePricingRow.style.display = 'none';
+                        if (halfKgPriceInput) {
+                            halfKgPriceInput.removeAttribute('required');
+                            halfKgPriceInput.value = '';
+                        }
+                        if (oneKgPriceInput) {
+                            oneKgPriceInput.removeAttribute('required');
+                            oneKgPriceInput.value = '';
+                        }
+                        
+                        // Show selling price for non-cake
+                        if (sellingPriceContainer) {
+                            sellingPriceContainer.style.display = 'block';
+                            if (sellingPriceInput) sellingPriceInput.setAttribute('required', 'required');
+                        }
+                        if (profitContainer) {
+                            profitContainer.style.display = 'block';
+                        }
+                    }
+                });
+            }
+
+            // Unit change handler for GMS
+            var unitSelect = card.querySelector('[data-field="unit"]');
+            var gramAmountContainer = card.querySelector('[data-field="gramAmountContainer"]');
+            var gramAmountInput = card.querySelector('[data-field="gramAmount"]');
+            var batchNumberContainer = card.querySelector('[data-field="batchNumberContainer"]');
+            
+            if (unitSelect && gramAmountContainer) {
+                unitSelect.addEventListener('change', function() {
+                    if (this.value === 'gms') {
+                        gramAmountContainer.style.display = 'block';
+                        if (batchNumberContainer) batchNumberContainer.style.display = 'none';
+                        if (gramAmountInput) gramAmountInput.setAttribute('required', 'required');
+                    } else {
+                        gramAmountContainer.style.display = 'none';
+                        if (batchNumberContainer) batchNumberContainer.style.display = 'block';
+                        if (gramAmountInput) {
+                            gramAmountInput.removeAttribute('required');
+                            gramAmountInput.value = '';
+                        }
+                    }
+                });
+            }
+
+            // Initialize selling price as required by default
+            if (sellingPriceInput) {
+                sellingPriceInput.setAttribute('required', 'required');
+            }
 
             container.appendChild(card);
             updateProductCount();
+            calcBulkTotalPurchaseAmount(); // Calculate initial total
         }
 
         function calcBulkProfit(card) {
@@ -490,9 +686,32 @@
             }
         }
 
+        // Calculate total purchase amount for all bulk products
+        function calcBulkTotalPurchaseAmount() {
+            var cards = document.querySelectorAll('#bulkProductTableBody .card');
+            var totalPurchase = 0;
+            
+            cards.forEach(function(card) {
+                var stock = parseFloat(card.querySelector('[data-field="stock"]').value) || 0;
+                var purchasePrice = parseFloat(card.querySelector('[data-field="purchasePrice"]').value) || 0;
+                totalPurchase += (stock * purchasePrice);
+            });
+            
+            var bulkTotalInput = document.getElementById('bulkTotalPurchase');
+            if (bulkTotalInput) {
+                bulkTotalInput.value = totalPurchase.toFixed(2);
+                calcBulkPayment(); // Recalculate payment details
+            }
+        }
+
         function removeBulkRow(rowId) {
             var row = document.getElementById('bulkRow' + rowId);
-            if (row) { row.remove(); updateProductCount(); renumberRows(); }
+            if (row) { 
+                row.remove(); 
+                updateProductCount(); 
+                renumberRows();
+                calcBulkTotalPurchaseAmount(); // Recalculate total after removal
+            }
         }
 
         function renumberRows() {
@@ -512,6 +731,17 @@
             var total = parseFloat(document.getElementById('bulkTotalPurchase').value) || 0;
             var paid  = parseFloat(document.getElementById('bulkAmountPaid').value)  || 0;
             var due   = Math.max(0, total - paid);
+            var paidInput = document.getElementById('bulkAmountPaid');
+            
+            // Highlight if exceeds total
+            if (paid > total && total > 0) {
+                paidInput.style.borderColor = 'red';
+                paidInput.style.borderWidth = '2px';
+            } else {
+                paidInput.style.borderColor = '';
+                paidInput.style.borderWidth = '';
+            }
+            
             document.getElementById('bulkAmountDue').value = due > 0 ? due.toFixed(2) : '';
             var statusEl = document.getElementById('bulkPaymentStatus');
             if (!total) {
@@ -519,7 +749,7 @@
             } else if (paid >= total) {
                 statusEl.textContent = 'Paid'; statusEl.className = 'fw-bold text-success';
             } else if (paid > 0) {
-                statusEl.textContent = 'Partial (\u20B9' + due.toFixed(2) + ' due)'; statusEl.className = 'fw-bold text-warning';
+                statusEl.textContent = 'Partial (₹' + due.toFixed(2) + ' due)'; statusEl.className = 'fw-bold text-warning';
             } else {
                 statusEl.textContent = 'Unpaid'; statusEl.className = 'fw-bold text-danger';
             }
@@ -559,13 +789,21 @@
             var hasError = false;
             cards.forEach(function(card, index) {
                 if (hasError) return;
+                var trackStockInput = card.querySelector('[data-field="trackStock"]');
+                var halfKgPriceInput = card.querySelector('[data-field="halfKgPrice"]');
+                var oneKgPriceInput = card.querySelector('[data-field="oneKgPrice"]');
+                var gramAmountInput = card.querySelector('[data-field="gramAmount"]');
                 var product = {
                     name: (card.querySelector('[data-field="name"]').value || '').trim(),
                     category: (card.querySelector('[data-field="category"]').value || '').trim(),
                     purchasePrice: parseFloat(card.querySelector('[data-field="purchasePrice"]').value) || 0,
                     sellingPrice: parseFloat(card.querySelector('[data-field="sellingPrice"]').value) || 0,
+                    halfKgPrice: halfKgPriceInput ? parseFloat(halfKgPriceInput.value) || 0 : 0,
+                    oneKgPrice: oneKgPriceInput ? parseFloat(oneKgPriceInput.value) || 0 : 0,
                     stock: parseInt(card.querySelector('[data-field="stock"]').value) || 0,
                     unit: card.querySelector('[data-field="unit"]').value,
+                    gramAmount: gramAmountInput ? parseInt(gramAmountInput.value) || 0 : 0,
+                    trackStock: trackStockInput ? trackStockInput.value : 'true',
                     mfgDate: card.querySelector('[data-field="mfgDate"]').value || null,
                     expiryDate: card.querySelector('[data-field="expiryDate"]').value || null,
                     image: (card.querySelector('[data-field="image"]').value || '').trim(),
@@ -590,27 +828,43 @@
                     card.querySelector('[data-field="category"]').focus();
                     hasError = true; return;
                 }
-                if (!product.purchasePrice || product.purchasePrice <= 0) {
-                    alert('⚠️ Product #' + (index+1) + ': Purchase Price must be greater than 0!');
-                    card.querySelector('[data-field="purchasePrice"]').focus();
-                    hasError = true; return;
-                }
-                if (!product.sellingPrice || product.sellingPrice <= 0) {
-                    alert('⚠️ Product #' + (index+1) + ': Selling Price must be greater than 0!');
-                    card.querySelector('[data-field="sellingPrice"]').focus();
-                    hasError = true; return;
-                }
-                if (product.sellingPrice < product.purchasePrice) {
-                    var confirmLoss = confirm('⚠️ Product #' + (index+1) + ': Selling Price (₹' + product.sellingPrice + ') is less than Purchase Price (₹' + product.purchasePrice + '). This will result in a loss. Continue anyway?');
-                    if (!confirmLoss) {
+                // Purchase price is now optional
+                // Skip selling price validation for cake category
+                var isCake = product.category.trim().toLowerCase() === 'cake' || product.category.trim().toLowerCase().includes('cake');
+                
+                if (isCake) {
+                    // Validate cake pricing
+                    if ((!product.halfKgPrice || product.halfKgPrice <= 0) && (!product.oneKgPrice || product.oneKgPrice <= 0)) {
+                        alert('⚠️ Product #' + (index+1) + ': For cake category, please provide at least Half Kg Price or One Kg Price!');
+                        card.querySelector('[data-field="halfKgPrice"]').focus();
+                        hasError = true; return;
+                    }
+                } else {
+                    if (!product.sellingPrice || product.sellingPrice <= 0) {
+                        alert('⚠️ Product #' + (index+1) + ': Selling Price must be greater than 0!');
                         card.querySelector('[data-field="sellingPrice"]').focus();
                         hasError = true; return;
+                    }
+                    if (product.purchasePrice > 0 && product.sellingPrice < product.purchasePrice) {
+                        var confirmLoss = confirm('⚠️ Product #' + (index+1) + ': Selling Price (₹' + product.sellingPrice + ') is less than Purchase Price (₹' + product.purchasePrice + '). This will result in a loss. Continue anyway?');
+                        if (!confirmLoss) {
+                            card.querySelector('[data-field="sellingPrice"]').focus();
+                            hasError = true; return;
+                        }
                     }
                 }
                 if (!product.unit) {
                     alert('⚠️ Product #' + (index+1) + ': Unit is required!');
                     card.querySelector('[data-field="unit"]').focus();
                     hasError = true; return;
+                }
+                // Validate gram amount for GMS unit
+                if (product.unit === 'gms') {
+                    if (!product.gramAmount || product.gramAmount <= 0) {
+                        alert('⚠️ Product #' + (index+1) + ': Gram Amount is required when unit is GMS!');
+                        card.querySelector('[data-field="gramAmount"]').focus();
+                        hasError = true; return;
+                    }
                 }
                 // Validate dates
                 if (product.mfgDate && product.expiryDate) {
@@ -677,22 +931,33 @@
                 return false;
             }
 
-            // Validate prices
-            if (!purchasePrice || purchasePrice <= 0) {
-                alert('⚠️ Purchase Price must be greater than 0!');
-                document.getElementById('purchasePrice').focus();
-                return false;
-            }
-            if (!sellingPrice || sellingPrice <= 0) {
-                alert('⚠️ Selling Price must be greater than 0!');
-                document.getElementById('sellingPrice').focus();
-                return false;
-            }
-            if (sellingPrice < purchasePrice) {
-                var confirmLoss = confirm('⚠️ Selling Price (₹' + sellingPrice + ') is less than Purchase Price (₹' + purchasePrice + '). This will result in a LOSS. Continue anyway?');
-                if (!confirmLoss) {
+            // Validate prices - Purchase price is now optional
+            // Skip selling price validation for cake category
+            var categoryValue = category.trim().toLowerCase();
+            var isCake = categoryValue === 'cake' || categoryValue.includes('cake');
+            
+            if (isCake) {
+                // Validate cake pricing
+                var halfKgPrice = parseFloat(document.getElementById('halfKgPrice').value);
+                var oneKgPrice = parseFloat(document.getElementById('oneKgPrice').value);
+                
+                if ((!halfKgPrice || halfKgPrice <= 0) && (!oneKgPrice || oneKgPrice <= 0)) {
+                    alert('⚠️ For cake category, please provide at least Half Kg Price or One Kg Price!');
+                    document.getElementById('halfKgPrice').focus();
+                    return false;
+                }
+            } else {
+                if (!sellingPrice || sellingPrice <= 0) {
+                    alert('⚠️ Selling Price must be greater than 0!');
                     document.getElementById('sellingPrice').focus();
                     return false;
+                }
+                if (purchasePrice > 0 && sellingPrice < purchasePrice) {
+                    var confirmLoss = confirm('⚠️ Selling Price (₹' + sellingPrice + ') is less than Purchase Price (₹' + purchasePrice + '). This will result in a LOSS. Continue anyway?');
+                    if (!confirmLoss) {
+                        document.getElementById('sellingPrice').focus();
+                        return false;
+                    }
                 }
             }
 
@@ -701,6 +966,17 @@
                 alert('⚠️ Stock quantity must be 0 or greater!');
                 document.querySelector('#singleProductForm [name="stock"]').focus();
                 return false;
+            }
+
+            // Validate gram amount for GMS unit
+            var unit = document.getElementById('unitSelect').value;
+            if (unit === 'gms') {
+                var gramAmount = parseInt(document.getElementById('gramAmount').value);
+                if (!gramAmount || gramAmount <= 0) {
+                    alert('⚠️ Gram Amount is required when unit is GMS!');
+                    document.getElementById('gramAmount').focus();
+                    return false;
+                }
             }
 
             // Validate supplier contact (optional but if provided must be 10 digits)
@@ -785,30 +1061,105 @@
                     });
                 }
 
-                // Profit calculation
+                // Get all input elements
                 var purchaseInput = document.getElementById('purchasePrice');
                 var sellingInput = document.getElementById('sellingPrice');
                 var profitDisplay = document.getElementById('profitDisplay');
                 var profitPercentage = document.getElementById('profitPercentage');
                 var priceHidden = document.getElementById('price');
+                var stockInput = document.querySelector('#singleProductForm [name="stock"]');
+                var totalPurchaseInput = document.getElementById('totalPurchaseAmount');
+                var amountPaidInput = document.getElementById('amountPaid');
+                var amountDueInput = document.getElementById('amountDue');
+                var paymentMethodInput = document.getElementById('paymentMethod');
+                var paymentStatusInput = document.getElementById('paymentStatus');
 
+                // Initialize selling price as required by default
+                if (sellingInput) {
+                    sellingInput.setAttribute('required', 'required');
+                }
+
+                // Profit calculation function
                 function calculateProfit() {
+                    if (!purchaseInput || !sellingInput) return;
                     var purchase = parseFloat(purchaseInput.value) || 0;
                     var selling = parseFloat(sellingInput.value) || 0;
                     var profit = selling - purchase;
                     var pct = purchase > 0 ? ((profit / purchase) * 100).toFixed(1) : 0;
-                    if (profitDisplay) profitDisplay.value = profit.toFixed(2);
+                    if (profitDisplay) {
+                        profitDisplay.value = profit.toFixed(2);
+                        if (profit < 0) { 
+                            profitDisplay.style.backgroundColor='#ffebee'; 
+                        } else if (profit === 0) { 
+                            profitDisplay.style.backgroundColor='#fff3e0'; 
+                        } else { 
+                            profitDisplay.style.backgroundColor='#e8f5e9'; 
+                        }
+                    }
                     if (profitPercentage) {
                         profitPercentage.textContent = pct + '% profit margin';
-                        if (profit < 0) { profitDisplay.style.backgroundColor='#ffebee'; profitPercentage.style.color='red'; profitPercentage.textContent=pct+'% LOSS!'; }
-                        else if (profit === 0) { profitDisplay.style.backgroundColor='#fff3e0'; profitPercentage.style.color='orange'; }
-                        else { profitDisplay.style.backgroundColor='#e8f5e9'; profitPercentage.style.color='green'; }
+                        if (profit < 0) { 
+                            profitPercentage.style.color='red'; 
+                            profitPercentage.textContent=pct+'% LOSS!'; 
+                        } else if (profit === 0) { 
+                            profitPercentage.style.color='orange'; 
+                        } else { 
+                            profitPercentage.style.color='green'; 
+                        }
                     }
                     if (priceHidden) priceHidden.value = selling;
                 }
 
-                if (purchaseInput) purchaseInput.addEventListener('input', calculateProfit);
-                if (sellingInput) sellingInput.addEventListener('input', calculateProfit);
+                // Total Purchase Amount calculation
+                function calculateTotalPurchaseAmount() {
+                    if (!stockInput || !purchaseInput || !totalPurchaseInput) return;
+                    var stock = parseFloat(stockInput.value) || 0;
+                    var purchasePrice = parseFloat(purchaseInput.value) || 0;
+                    var totalPurchase = stock * purchasePrice;
+                    totalPurchaseInput.value = totalPurchase.toFixed(2);
+                    calculatePaymentDetails();
+                }
+
+                // Payment details calculation
+                function calculatePaymentDetails() {
+                    if (!totalPurchaseInput || !amountPaidInput || !amountDueInput) return;
+                    var totalPurchase = parseFloat(totalPurchaseInput.value) || 0;
+                    var amountPaid = parseFloat(amountPaidInput.value) || 0;
+                    var amountDue = totalPurchase - amountPaid;
+                    amountDueInput.value = amountDue.toFixed(2);
+                    amountDueInput.style.color = amountDue > 0 ? 'red' : 'green';
+                    amountDueInput.style.fontWeight = 'bold';
+                    
+                    var status = 'Not Specified';
+                    if (totalPurchase > 0) {
+                        if (amountPaid === 0) status = 'Pending';
+                        else if (amountDue <= 0) status = 'Fully Paid';
+                        else status = 'Partial Payment';
+                    }
+                    if (paymentStatusInput) paymentStatusInput.value = status;
+                }
+
+                // Event listeners for Purchase Price (affects both profit and total)
+                if (purchaseInput) {
+                    purchaseInput.addEventListener('input', function() {
+                        calculateProfit();
+                        calculateTotalPurchaseAmount();
+                    });
+                }
+                
+                // Event listener for Selling Price (affects only profit)
+                if (sellingInput) {
+                    sellingInput.addEventListener('input', function() {
+                        calculateProfit();
+                    });
+                }
+                
+                // Event listener for Stock (affects total purchase amount)
+                if (stockInput) {
+                    stockInput.addEventListener('input', function() {
+                        calculateTotalPurchaseAmount();
+                    });
+                }
 
                 // MFG / Expiry dates
                 var mfgInput = document.getElementById('mfgDate');
@@ -855,35 +1206,20 @@
                     });
                 }
 
-                // Payment details
-                var totalPurchaseInput = document.getElementById('totalPurchaseAmount');
-                var amountPaidInput = document.getElementById('amountPaid');
-                var amountDueInput = document.getElementById('amountDue');
-                var paymentMethodInput = document.getElementById('paymentMethod');
-                var paymentStatusInput = document.getElementById('paymentStatus');
-
-                function calculatePaymentDetails() {
-                    var totalPurchase = parseFloat(totalPurchaseInput.value) || 0;
-                    var amountPaid = parseFloat(amountPaidInput.value) || 0;
-                    var amountDue = totalPurchase - amountPaid;
-                    if (amountDueInput) {
-                        amountDueInput.value = amountDue.toFixed(2);
-                        amountDueInput.style.color = amountDue > 0 ? 'red' : 'green';
-                        amountDueInput.style.fontWeight = 'bold';
-                    }
-                    var status = 'Not Specified';
-                    if (totalPurchase > 0) {
-                        if (amountPaid === 0) status = 'Pending';
-                        else if (amountDue <= 0) status = 'Fully Paid';
-                        else status = 'Partial Payment';
-                    }
-                    if (paymentStatusInput) paymentStatusInput.value = status;
-                }
-
+                // Payment input event listeners
                 if (amountPaidInput) amountPaidInput.addEventListener('input', function() {
                     if (parseFloat(this.value) < 0) this.value = 0;
                     var total = parseFloat(totalPurchaseInput?.value) || 0;
-                    this.style.borderColor = (parseFloat(this.value) > total && total > 0) ? 'orange' : '';
+                    var paid = parseFloat(this.value) || 0;
+                    
+                    // Highlight if exceeds total
+                    if (paid > total && total > 0) {
+                        this.style.borderColor = 'red';
+                        this.style.borderWidth = '2px';
+                    } else {
+                        this.style.borderColor = '';
+                        this.style.borderWidth = '';
+                    }
                     calculatePaymentDetails();
                 });
                 if (totalPurchaseInput) totalPurchaseInput.addEventListener('input', function() {
@@ -891,6 +1227,184 @@
                     calculatePaymentDetails();
                 });
                 if (paymentMethodInput) paymentMethodInput.addEventListener('change', calculatePaymentDetails);
+
+                // ============================================================
+                // STOCK TRACKING TOGGLE CONFIGURATION
+                // ============================================================
+                var disableStockToggle = document.getElementById('disableStockToggle');
+                var stockInput = document.getElementById('stockInput');
+                var unitSelect = document.getElementById('unitSelect');
+                var trackStockInput = document.getElementById('trackStock');
+                var stockStatusNote = document.getElementById('stockStatusNote');
+
+                if (disableStockToggle && stockInput && trackStockInput) {
+                    // Handle toggle change
+                    disableStockToggle.addEventListener('change', function() {
+                        if (this.checked) {
+                            // Disable stock tracking
+                            stockInput.value = '0';
+                            stockInput.setAttribute('readonly', true);
+                            stockInput.setAttribute('disabled', true);
+                            stockInput.style.backgroundColor = '#f8f9fa';
+                            trackStockInput.value = 'false';
+                            stockStatusNote.style.display = 'block';
+                            
+                            // Optional: Auto-select kg for weight-based products
+                            if (unitSelect && unitSelect.value === 'piece') {
+                                unitSelect.value = 'kg';
+                            }
+                        } else {
+                            // Enable stock tracking
+                            stockInput.removeAttribute('readonly');
+                            stockInput.removeAttribute('disabled');
+                            stockInput.style.backgroundColor = '';
+                            stockInput.value = '';
+                            trackStockInput.value = 'true';
+                            stockStatusNote.style.display = 'none';
+                        }
+                    });
+                }
+
+                // ============================================================
+                // CATEGORY-BASED AUTO CONFIGURATION (Optional suggestion)
+                // ============================================================
+                var categoryInput = document.querySelector('input[name="category"]');
+                var cakePricingSection = document.getElementById('cakePricingSection');
+                var halfKgPriceInput = document.getElementById('halfKgPrice');
+                var oneKgPriceInput = document.getElementById('oneKgPrice');
+                var sellingPriceInput = document.getElementById('sellingPrice');
+                var sellingPriceContainer = document.getElementById('sellingPriceContainer');
+                var profitContainer = document.getElementById('profitContainer');
+
+                if (categoryInput && disableStockToggle && unitSelect) {
+                    categoryInput.addEventListener('input', function() {
+                        var category = this.value.trim().toLowerCase();
+                        
+                        if (category === 'cake' || category.includes('cake')) {
+                            // Show cake pricing section
+                            if (cakePricingSection) {
+                                cakePricingSection.style.display = 'flex';
+                                if (halfKgPriceInput) halfKgPriceInput.setAttribute('required', 'required');
+                                if (oneKgPriceInput) oneKgPriceInput.setAttribute('required', 'required');
+                            }
+                            
+                            // Hide selling price and profit for cake category
+                            if (sellingPriceContainer) {
+                                sellingPriceContainer.style.display = 'none';
+                                if (sellingPriceInput) {
+                                    sellingPriceInput.removeAttribute('required');
+                                    sellingPriceInput.value = '0';
+                                }
+                            }
+                            if (profitContainer) {
+                                profitContainer.style.display = 'none';
+                            }
+                            
+                            // Suggest cake configuration
+                            if (!disableStockToggle.checked) {
+                                disableStockToggle.checked = true;
+                                disableStockToggle.dispatchEvent(new Event('change'));
+                            }
+                        } else {
+                            // Hide cake pricing section
+                            if (cakePricingSection) {
+                                cakePricingSection.style.display = 'none';
+                                if (halfKgPriceInput) {
+                                    halfKgPriceInput.removeAttribute('required');
+                                    halfKgPriceInput.value = '';
+                                }
+                                if (oneKgPriceInput) {
+                                    oneKgPriceInput.removeAttribute('required');
+                                    oneKgPriceInput.value = '';
+                                }
+                            }
+                            
+                            // Show selling price for non-cake
+                            if (sellingPriceContainer) {
+                                sellingPriceContainer.style.display = 'block';
+                                if (sellingPriceInput) sellingPriceInput.setAttribute('required', 'required');
+                            }
+                            if (profitContainer) {
+                                profitContainer.style.display = 'block';
+                            }
+                        }
+                    });
+                }
+
+                // ============================================================
+                // UNIT CHANGE HANDLER - Show gram amount field for GMS unit
+                // ============================================================
+                var gramAmountContainer = document.getElementById('gramAmountContainer');
+                var gramAmountInput = document.getElementById('gramAmount');
+                
+                if (unitSelect && gramAmountContainer) {
+                    unitSelect.addEventListener('change', function() {
+                        if (this.value === 'gms') {
+                            gramAmountContainer.style.display = 'block';
+                            if (gramAmountInput) gramAmountInput.setAttribute('required', 'required');
+                        } else {
+                            gramAmountContainer.style.display = 'none';
+                            if (gramAmountInput) {
+                                gramAmountInput.removeAttribute('required');
+                                gramAmountInput.value = '';
+                            }
+                        }
+                    });
+                }
+
+                // ============================================================
+                // PAYMENT DETAILS TOGGLE - SINGLE FORM
+                // ============================================================
+                var disablePaymentToggle = document.getElementById('disablePaymentToggle');
+                var paymentDetailsSection = document.getElementById('paymentDetailsSection');
+                
+                if (disablePaymentToggle && paymentDetailsSection) {
+                    disablePaymentToggle.addEventListener('change', function() {
+                        if (this.checked) {
+                            // Disable all payment fields
+                            paymentDetailsSection.style.opacity = '0.5';
+                            paymentDetailsSection.style.pointerEvents = 'none';
+                            
+                            // Set default values
+                            document.getElementById('amountPaid').value = '0';
+                            document.getElementById('paymentMethod').value = 'none';
+                            if (document.getElementById('paymentNotes')) {
+                                document.getElementById('paymentNotes').value = '';
+                            }
+                        } else {
+                            // Enable payment fields
+                            paymentDetailsSection.style.opacity = '1';
+                            paymentDetailsSection.style.pointerEvents = 'auto';
+                        }
+                    });
+                }
+
+                // ============================================================
+                // PAYMENT DETAILS TOGGLE - BULK FORM
+                // ============================================================
+                var bulkDisablePaymentToggle = document.getElementById('bulkDisablePaymentToggle');
+                var bulkPaymentDetailsSection = document.getElementById('bulkPaymentDetailsSection');
+                
+                if (bulkDisablePaymentToggle && bulkPaymentDetailsSection) {
+                    bulkDisablePaymentToggle.addEventListener('change', function() {
+                        if (this.checked) {
+                            // Disable all payment fields
+                            bulkPaymentDetailsSection.style.opacity = '0.5';
+                            bulkPaymentDetailsSection.style.pointerEvents = 'none';
+                            
+                            // Set default values
+                            document.getElementById('bulkSupplierName').value = '';
+                            document.getElementById('bulkSupplierContact').value = '';
+                            document.getElementById('bulkAmountPaid').value = '0';
+                            document.getElementById('bulkPaymentMethod').value = 'none';
+                            document.getElementById('bulkPaymentNotes').value = '';
+                        } else {
+                            // Enable payment fields
+                            bulkPaymentDetailsSection.style.opacity = '1';
+                            bulkPaymentDetailsSection.style.pointerEvents = 'auto';
+                        }
+                    });
+                }
 
             } catch(err) {
                 console.error('Single form init error (toggle still works):', err);
