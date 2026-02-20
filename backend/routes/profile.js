@@ -39,14 +39,16 @@ const upload = multer({
         fileSize: 5 * 1024 * 1024 // 5MB max file size
     },
     fileFilter: function(req, file, cb) {
-        const allowedTypes = /jpeg|jpg|png|gif/;
+        const allowedTypes = /jpeg|jpg|png|gif|jfif|webp/;
         const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
         const mimetype = allowedTypes.test(file.mimetype);
         
         if (mimetype && extname) {
             return cb(null, true);
         } else {
-            cb(new Error('Only image files (JPEG, JPG, PNG, GIF) are allowed!'));
+            // Skip invalid files instead of crashing - just reject silently
+            console.log(`⚠️ Skipping invalid file: ${file.originalname} (only JPG/PNG/GIF/WEBP allowed)`);
+            return cb(null, false);
         }
     }
 });
@@ -101,7 +103,7 @@ router.post('/update', isAuthenticated, upload.fields([
     { name: 'shopQRCode', maxCount: 1 }
 ]), async (req, res) => {
     try {
-        const { fullName, email, phone, shopName, shopGST, shopAddress, billFooterText } = req.body;
+        const { fullName, email, phone, shopName, shopGST, shopAddress, billFooterText, shopLogoURL, shopQRCodeURL } = req.body;
 
         // Validate required fields
         if (!fullName || !email) {
@@ -151,25 +153,41 @@ router.post('/update', isAuthenticated, upload.fields([
             updatedAt: Date.now()
         };
 
-        // Handle logo upload
-        if (req.files && req.files.shopLogo) {
-            // Delete old logo if exists
-            if (currentUser.shopLogo) {
-                const oldLogoPath = path.join(uploadsDir, path.basename(currentUser.shopLogo));
-                if (fs.existsSync(oldLogoPath)) {
-                    fs.unlinkSync(oldLogoPath);
+        // Handle logo upload - URL takes priority over file upload
+        if (shopLogoURL && shopLogoURL.trim() !== '') {
+            // User provided URL - use it directly
+            updateData.shopLogo = shopLogoURL.trim();
+        } else if (req.files && req.files.shopLogo && req.files.shopLogo[0]) {
+            // File upload provided
+            // Delete old logo if exists and is a local file
+            if (currentUser.shopLogo && currentUser.shopLogo.startsWith('/uploads/')) {
+                try {
+                    const oldLogoPath = path.join(uploadsDir, path.basename(currentUser.shopLogo));
+                    if (fs.existsSync(oldLogoPath)) {
+                        fs.unlinkSync(oldLogoPath);
+                    }
+                } catch (e) {
+                    console.log('Could not delete old logo:', e.message);
                 }
             }
             updateData.shopLogo = '/uploads/' + req.files.shopLogo[0].filename;
         }
 
-        // Handle QR code upload
-        if (req.files && req.files.shopQRCode) {
-            // Delete old QR code if exists
-            if (currentUser.shopQRCode) {
-                const oldQRPath = path.join(uploadsDir, path.basename(currentUser.shopQRCode));
-                if (fs.existsSync(oldQRPath)) {
-                    fs.unlinkSync(oldQRPath);
+        // Handle QR code upload - URL takes priority over file upload
+        if (shopQRCodeURL && shopQRCodeURL.trim() !== '') {
+            // User provided URL - use it directly
+            updateData.shopQRCode = shopQRCodeURL.trim();
+        } else if (req.files && req.files.shopQRCode && req.files.shopQRCode[0]) {
+            // File upload provided
+            // Delete old QR code if exists and is a local file
+            if (currentUser.shopQRCode && currentUser.shopQRCode.startsWith('/uploads/')) {
+                try {
+                    const oldQRPath = path.join(uploadsDir, path.basename(currentUser.shopQRCode));
+                    if (fs.existsSync(oldQRPath)) {
+                        fs.unlinkSync(oldQRPath);
+                    }
+                } catch (e) {
+                    console.log('Could not delete old QR:', e.message);
                 }
             }
             updateData.shopQRCode = '/uploads/' + req.files.shopQRCode[0].filename;

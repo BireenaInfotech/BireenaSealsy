@@ -84,6 +84,11 @@ const productSchema = new mongoose.Schema({
         default: 0,
         min: 0
     },
+    pastryPrice: {
+        type: Number,
+        default: 0,
+        min: 0
+    },
     supplierName: {
         type: String,
         default: ''
