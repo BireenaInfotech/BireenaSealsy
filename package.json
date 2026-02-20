@@ -7,7 +7,7 @@
     "start": "node server.js",
     "dev": "nodemon server.js",
     "prod": "NODE_ENV=production node server.js",
-    "build": "webpack --mode production",
+    "build:webpack": "webpack --mode production",
     "security:audit": "npm audit",
     "security:fix": "npm audit fix",
     "test": "echo \"Error: no test specified\" && exit 1"

@@ -1,11 +1,9 @@
 // ══════════════════════════════════════════════════════════════════
-// CRASH GUARD — Must be FIRST, before any require()
-// Catches any synchronous throw during module loading
+// CRASH GUARD — Registered FIRST before any other code
 // ══════════════════════════════════════════════════════════════════
 process.on('uncaughtException', (err) => {
-    console.error('💥 UNCAUGHT EXCEPTION (startup crash):', err.message);
-    console.error('Stack:', err.stack);
-    // Do NOT exit — let Vercel function stay alive
+    console.error('💥 UNCAUGHT EXCEPTION:', err.message, '\nStack:', err.stack);
+    // Do NOT exit
 });
 process.on('unhandledRejection', (reason) => {
     console.error('💥 UNHANDLED REJECTION:', reason);
