@@ -136,8 +136,16 @@
                                     <p class="text-muted small mt-1">Current logo - Upload new to replace</p>
                                 </div>
                             <% } %>
-                            <input type="file" class="form-control" name="shopLogo" id="shopLogo" accept="image/*">
-                            <small class="text-muted">Upload your shop logo (Max 5MB, JPG/PNG/GIF) - Will appear on bills</small>
+                            <div class="mb-2">
+                                <label class="form-label small text-muted">Option 1: Upload Image File</label>
+                                <input type="file" class="form-control" name="shopLogo" id="shopLogo" accept="image/*">
+                                <small class="text-muted">Upload file (Max 5MB, JPG/PNG/GIF/WEBP)</small>
+                            </div>
+                            <div class="mb-0">
+                                <label class="form-label small text-muted">Option 2: Enter Image URL</label>
+                                <input type="url" class="form-control" name="shopLogoURL" id="shopLogoURL" placeholder="https://example.com/logo.jpg">
+                                <small class="text-muted">Or paste image URL (URL will be used if both are provided)</small>
+                            </div>
                         </div>
 
                         <div class="mb-3">
@@ -150,8 +158,16 @@
                                     <p class="text-muted small mt-1">Current QR code - Upload new to replace</p>
                                 </div>
                             <% } %>
-                            <input type="file" class="form-control" name="shopQRCode" id="shopQRCode" accept="image/*">
-                            <small class="text-muted">Upload QR code (Max 5MB, JPG/PNG/GIF) - For UPI payments, contact info, etc. - Will appear on bills</small>
+                            <div class="mb-2">
+                                <label class="form-label small text-muted">Option 1: Upload Image File</label>
+                                <input type="file" class="form-control" name="shopQRCode" id="shopQRCode" accept="image/*">
+                                <small class="text-muted">Upload file (Max 5MB, JPG/PNG/GIF/WEBP)</small>
+                            </div>
+                            <div class="mb-0">
+                                <label class="form-label small text-muted">Option 2: Enter Image URL</label>
+                                <input type="url" class="form-control" name="shopQRCodeURL" id="shopQRCodeURL" placeholder="https://example.com/qr-code.jpg">
+                                <small class="text-muted">Or paste image URL (URL will be used if both are provided)</small>
+                            </div>
                         </div>
 
                         <hr class="my-4">

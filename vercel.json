@@ -14,7 +14,11 @@
   ],
   "functions": {
     "server.js": {
-      "maxDuration": 30
+      "maxDuration": 10,
+      "memory": 1024
     }
+  },
+  "env": {
+    "NODE_ENV": "production"
   }
 }
