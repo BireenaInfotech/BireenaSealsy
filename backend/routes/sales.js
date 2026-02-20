@@ -64,24 +64,73 @@ router.get('/new', isAuthenticated, async (req, res) => {
     try {
         const adminId = getAdminId(req);
         let filter = { stock: { $gt: 0 }, adminId };
-        
-        // 🎯 Staff sees only their own products, Admin sees all products
-        // Remove the addedBy filter so all products are visible for billing
-        // if (req.session.user.role === 'staff') {
-        //     filter.addedBy = req.session.user.id;
-        // }
-        
+
+        let employees = [];
+        let selectedEmployeeId = null;
+
+        if (req.session.user.role === 'admin') {
+            // Fetch all staff under this admin for the filter dropdown
+            employees = await User.find({ adminId: adminId, role: 'staff' })
+                .select('_id fullName username branch').lean();
+
+            const empParam = req.query.employee; // 'self' | 'all' | <userId>
+
+            if (!empParam || empParam === 'self') {
+                // Default: admin's own products
+                filter.addedBy = req.session.user.id;
+                selectedEmployeeId = 'self';
+            } else if (empParam === 'all') {
+                // No addedBy filter → every product of this shop
+                selectedEmployeeId = 'all';
+            } else {
+                // Specific employee
+                filter.addedBy = empParam;
+                selectedEmployeeId = empParam;
+            }
+        } else {
+            // Staff: their own products only
+            filter.addedBy = req.session.user.id;
+        }
+
         const products = await Product.find(filter).sort({ name: 1 });
-        console.log(`[POS] Loaded ${products.length} products for user: ${req.session.user.username}`);
-        
-        res.render('sales/new', { 
+        console.log(`[POS] Loaded ${products.length} products for user: ${req.session.user.username} (filter: ${selectedEmployeeId || 'staff-own'})`);
+
+        // Pass GST settings so frontend can show GST-inclusive totals in B2B mode
+        const gstSettings = await getGSTSettings();
+
+        res.render('sales/new', {
             products,
-            user: req.session.user
+            user: req.session.user,
+            employees,
+            selectedEmployeeId: selectedEmployeeId || 'self',
+            gstSettings: {
+                enableGST: gstSettings.enableGST || false,
+                defaultCGSTRate: gstSettings.defaultCGSTRate || 0,
+                defaultSGSTRate: gstSettings.defaultSGSTRate || 0,
+                defaultIGSTRate: gstSettings.defaultIGSTRate || 0
+            }
         });
     } catch (error) {
         console.error('New sale error:', error);
         req.flash('error_msg', 'Error loading products');
         res.redirect('/sales');
+    }
+});
+
+// API endpoint to fetch current GST rates (for real-time calculation)
+router.get('/api/gst-rates', isAuthenticated, async (req, res) => {
+    try {
+        const gstSettings = await getGSTSettings();
+        res.json({
+            success: true,
+            enableGST: gstSettings.enableGST || false,
+            defaultCGSTRate: gstSettings.defaultCGSTRate || 0,
+            defaultSGSTRate: gstSettings.defaultSGSTRate || 0,
+            defaultIGSTRate: gstSettings.defaultIGSTRate || 0
+        });
+    } catch (error) {
+        console.error('GST rates fetch error:', error);
+        res.json({ success: false, error: 'Failed to fetch GST rates' });
     }
 });
 
@@ -185,8 +234,8 @@ router.post('/create', isAuthenticated, async (req, res) => {
                 igstAmount: 0
             };
             
-            // Calculate GST only if enabled AND customer type is B2B
-            if (gstSettings.enableGST && custType === 'B2B' && custGSTIN) {
+            // Calculate GST if enabled AND customer type is B2B
+            if (gstSettings.enableGST && custType === 'B2B') {
                 const gstCalc = calculateItemGST(
                     itemSubtotal,
                     isInterState,
@@ -243,23 +292,26 @@ router.post('/create', isAuthenticated, async (req, res) => {
         const gstTotals = calculateTotalGST(saleItems);
 
         // **BACKEND CALCULATION: Total (subtotal - discount + GST)**
-        // GST only added for B2B customers
-        const gstToAdd = (gstSettings.enableGST && custType === 'B2B' && custGSTIN) ? gstTotals.totalGST : 0;
-        const total = subtotal - discountAmount + gstToAdd;
+        // GST added for all B2B customers regardless of GSTIN
+        const gstToAdd = (gstSettings.enableGST && custType === 'B2B') ? gstTotals.totalGST : 0;
+        // Round to 2 decimal places to avoid floating-point precision errors
+        const total = parseFloat((subtotal - discountAmount + gstToAdd).toFixed(2));
+        
+        console.log(`[GST CALC] custType=${custType}, enableGST=${gstSettings.enableGST}, subtotal=${subtotal}, discount=${discountAmount}, gstToAdd=${gstToAdd}, total=${total}, rates: CGST=${gstSettings.defaultCGSTRate}% SGST=${gstSettings.defaultSGSTRate}%`);
         
         // **BACKEND CALCULATION: Payment status**
-        const paidAmount = parseFloat(amountPaid) || 0;
+        const paidAmount = parseFloat((parseFloat(amountPaid) || 0).toFixed(2));
         
         // **SECURITY: Validate paid amount - cannot exceed total**
         if (paidAmount < 0) {
             throw new Error('Paid amount cannot be negative');
         }
         
-        if (paidAmount > total) {
+        if (paidAmount > total + 0.01) {
             throw new Error(`Paid amount (₹${paidAmount.toFixed(2)}) cannot exceed total bill amount (₹${total.toFixed(2)})`);
         }
         
-        const due = Math.max(0, total - paidAmount);
+        const due = parseFloat(Math.max(0, total - paidAmount).toFixed(2));
         
         let paymentStatus = 'paid';
         if (due > 0) {
@@ -347,6 +399,16 @@ router.post('/create', isAuthenticated, async (req, res) => {
         res.redirect(`/bill/print/${sale._id}`);
     } catch (error) {
         console.error('Create sale error:', error);
+        console.error('Error stack:', error.stack);
+        
+        // Check if request is JSON (AJAX)
+        if (req.headers['content-type'] && req.headers['content-type'].includes('application/json')) {
+            return res.json({
+                success: false,
+                error: error.message || 'Error creating sale'
+            });
+        }
+        
         req.flash('error_msg', error.message || 'Error creating sale');
         res.redirect('/sales/new');
     }
