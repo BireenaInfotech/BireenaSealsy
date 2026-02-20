@@ -57,12 +57,8 @@ const helmetConfig = helmet({
     frameguard: {
         action: 'deny'
     },
-    // Hide powered by header
-    hidePoweredBy: true,
     // Prevent MIME type sniffing
     noSniff: true,
-    // XSS Protection
-    xssFilter: true,
     // DNS Prefetch Control
     dnsPrefetchControl: {
         allow: false
