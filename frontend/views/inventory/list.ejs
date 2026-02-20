@@ -181,13 +181,16 @@
                                         </td>
                                         <td><%= product.category %></td>
                                         <td>
-                                            <% if (product.category && product.category.toLowerCase().includes('cake') && (product.halfKgPrice > 0 || product.oneKgPrice > 0)) { %>
+                                            <% if (product.category && product.category.toLowerCase().includes('cake') && (product.halfKgPrice > 0 || product.oneKgPrice > 0 || product.pastryPrice > 0)) { %>
                                                 <small style="display: block; line-height: 1.4;">
                                                     <% if (product.halfKgPrice > 0) { %>
                                                         ½kg: ₹<%= product.halfKgPrice.toFixed(2) %><br>
                                                     <% } %>
                                                     <% if (product.oneKgPrice > 0) { %>
-                                                        1kg: ₹<%= product.oneKgPrice.toFixed(2) %>
+                                                        1kg: ₹<%= product.oneKgPrice.toFixed(2) %><br>
+                                                    <% } %>
+                                                    <% if (product.pastryPrice > 0) { %>
+                                                        <span class="text-success">🧁 Pastry: ₹<%= product.pastryPrice.toFixed(2) %></span>
                                                     <% } %>
                                                 </small>
                                             <% } else { %>

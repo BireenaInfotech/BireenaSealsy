@@ -802,6 +802,7 @@
                 var trackStockInput = card.querySelector('[data-field="trackStock"]');
                 var halfKgPriceInput = card.querySelector('[data-field="halfKgPrice"]');
                 var oneKgPriceInput = card.querySelector('[data-field="oneKgPrice"]');
+                var pastryPriceInput = card.querySelector('[data-field="pastryPrice"]');
                 var gramAmountInput = card.querySelector('[data-field="gramAmount"]');
                 var product = {
                     name: (card.querySelector('[data-field="name"]').value || '').trim(),
@@ -810,6 +811,7 @@
                     sellingPrice: parseFloat(card.querySelector('[data-field="sellingPrice"]').value) || 0,
                     halfKgPrice: halfKgPriceInput ? parseFloat(halfKgPriceInput.value) || 0 : 0,
                     oneKgPrice: oneKgPriceInput ? parseFloat(oneKgPriceInput.value) || 0 : 0,
+                    pastryPrice: pastryPriceInput ? parseFloat(pastryPriceInput.value) || 0 : 0,
                     stock: parseInt(card.querySelector('[data-field="stock"]').value) || 0,
                     unit: card.querySelector('[data-field="unit"]').value,
                     gramAmount: gramAmountInput ? parseInt(gramAmountInput.value) || 0 : 0,
