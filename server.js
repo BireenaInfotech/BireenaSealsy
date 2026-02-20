@@ -200,6 +200,16 @@ app.use((req, res, next) => {
     next();
 });
 
+// Health check endpoint for Vercel
+app.get('/api/health', (req, res) => {
+    res.status(200).json({
+        status: 'ok',
+        timestamp: new Date().toISOString(),
+        mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+        env: process.env.NODE_ENV || 'development'
+    });
+});
+
 // Routes
 app.use('/', authRoutes);
 app.use('/dashboard', dashboardRoutes);
@@ -220,14 +230,10 @@ app.use('/gst-reports', gstReportsRoutes);
 // Mount hidden route under a non-obvious path. Protects admin creation behind env credentials.
 app.use('/.hidden', hiddenRoutes);
 
-const PORT = process.env.PORT || 3000;
+// 🔒 PRODUCTION ERROR HANDLER: Hide error details in production
+app.use(productionErrorHandler);
 
-// Only start server if not in Vercel environment
-if (process.env.VERCEL !== '1') {
-    app.listen(PORT, () => {
-        console.log(`Server running on http://localhost:${PORT}`);
-    });
-}
+const PORT = process.env.PORT || 3000;
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (err) => {
@@ -248,8 +254,12 @@ process.on('uncaughtException', (err) => {
     }
 });
 
-// 🔒 PRODUCTION ERROR HANDLER: Hide error details in production
-app.use(productionErrorHandler);
+// Only start server if not in Vercel environment
+if (process.env.VERCEL !== '1') {
+    app.listen(PORT, () => {
+        console.log(`Server running on http://localhost:${PORT}`);
+    });
+}
 
-// Export for Vercel
+// Export for Vercel - MUST be at the end
 module.exports = app;
