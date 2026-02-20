@@ -1121,8 +1121,8 @@
         // Cake weight modal functions
         let currentCakeProduct = null;
 
-        function openCakeWeightModal(element, id, name, stock, unit, halfKgPrice, oneKgPrice) {
-            console.log(`📝 Opening cake modal for: ${name}`, { halfKgPrice, oneKgPrice });
+        function openCakeWeightModal(element, id, name, stock, unit, halfKgPrice, oneKgPrice, pastryPrice) {
+            console.log(`📝 Opening cake modal for: ${name}`, { halfKgPrice, oneKgPrice, pastryPrice });
             
             // Store the product element and details
             currentCakeProduct = {
@@ -1132,17 +1132,20 @@
                 stock: stock,
                 unit: unit,
                 halfKgPrice: halfKgPrice,
-                oneKgPrice: oneKgPrice
+                oneKgPrice: oneKgPrice,
+                pastryPrice: pastryPrice || 0
             };
 
             // Update modal content
             document.getElementById('cakeProductName').textContent = name;
             document.getElementById('halfKgPriceDisplay').textContent = halfKgPrice.toFixed(2);
             document.getElementById('fullKgPriceDisplay').textContent = oneKgPrice.toFixed(2);
+            document.getElementById('pastryPriceDisplay').textContent = (pastryPrice || 0).toFixed(2);
 
             // Show/hide options based on available prices
             const halfKgOption = document.getElementById('halfKgOption');
             const fullKgOption = document.getElementById('fullKgOption');
+            const pastryOption = document.getElementById('pastryOption');
             
             if (halfKgPrice > 0) {
                 halfKgOption.style.display = 'block';
@@ -1154,6 +1157,12 @@
                 fullKgOption.style.display = 'block';
             } else {
                 fullKgOption.style.display = 'none';
+            }
+
+            if (pastryPrice > 0) {
+                pastryOption.style.display = 'block';
+            } else {
+                pastryOption.style.display = 'none';
             }
 
             // Show modal
@@ -1179,24 +1188,27 @@
             }
 
             const { element, id, name, stock, unit } = currentCakeProduct;
-            let totalPrice, price, quantity, weightLabel;
+            let totalPrice, price, quantity, weightLabel, displayUnit;
 
             if (weightType === 'half') {
                 totalPrice = parseFloat(currentCakeProduct.halfKgPrice) || 0;
                 quantity = 0.5;
                 weightLabel = '½kg';
+                displayUnit = 'kg';
                 // Calculate per-kg rate: if half kg costs ₹200, then ₹200/0.5 = ₹400 per kg
                 price = totalPrice / quantity;
             } else if (weightType === 'pastry') {
                 totalPrice = parseFloat(currentCakeProduct.pastryPrice) || 0;
-                quantity = 0.1;
+                quantity = 1; // 1 piece of pastry
                 weightLabel = 'Pastry(100g)';
-                // Pastry is 100g = 0.1kg, so per-kg rate = totalPrice / 0.1
-                price = totalPrice / quantity;
+                displayUnit = 'piece';
+                // Price is per piece
+                price = totalPrice;
             } else {
                 totalPrice = parseFloat(currentCakeProduct.oneKgPrice) || 0;
                 quantity = 1;
                 weightLabel = '1kg';
+                displayUnit = 'kg';
                 // Calculate per-kg rate: if one kg costs ₹400, then ₹400/1 = ₹400 per kg
                 price = totalPrice / quantity;
             }
@@ -1208,7 +1220,7 @@
                 return;
             }
 
-            console.log(`🎂 Adding ${name} - ${weightLabel} @ ₹${price.toFixed(2)}/kg × ${quantity}kg = ₹${totalPrice.toFixed(2)} total`);
+            console.log(`🎂 Adding ${name} - ${weightLabel} @ ₹${price.toFixed(2)}/${displayUnit} × ${quantity} ${displayUnit} = ₹${totalPrice.toFixed(2)} total`);
 
             // Add to cart or update existing
             if (!cart[id]) {
@@ -1218,7 +1230,7 @@
                     price: price,
                     quantity: quantity,
                     stock: stock,
-                    unit: 'kg',
+                    unit: displayUnit,
                     isCake: true,
                     baseWeight: quantity
                 };
@@ -1227,7 +1239,7 @@
             } else {
                 // If already in cart, add another unit of the selected weight
                 cart[id].quantity += quantity;
-                const displayQty = cart[id].quantity.toFixed(1);
+                const displayQty = displayUnit === 'kg' ? cart[id].quantity.toFixed(1) : Math.floor(cart[id].quantity);
                 element.querySelector('.qty-display').textContent = displayQty;
                 const newTotal = cart[id].price * cart[id].quantity;
                 console.log(`✅ Updated quantity to ${cart[id].quantity} kg, Total: ₹${newTotal.toFixed(2)}`);

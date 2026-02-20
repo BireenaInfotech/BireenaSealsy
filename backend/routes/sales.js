@@ -228,11 +228,14 @@ router.post('/create', isAuthenticated, async (req, res) => {
             if (item.isCake && item.price) {
                 const frontendPrice = parseFloat(item.price);
                 // Validate that frontend price matches one of the cake prices
-                // Half kg rate: halfKgPrice / 0.5, One kg rate: oneKgPrice / 1
+                // Half kg rate: halfKgPrice / 0.5, One kg rate: oneKgPrice / 1, Pastry: direct price (per piece)
                 const halfKgRate = product.halfKgPrice ? product.halfKgPrice / 0.5 : 0;
                 const oneKgRate = product.oneKgPrice ? product.oneKgPrice / 1 : 0;
+                const pastryPrice = product.pastryPrice || 0; // Direct price per piece
                 
-                if (Math.abs(frontendPrice - halfKgRate) < 0.01 || Math.abs(frontendPrice - oneKgRate) < 0.01) {
+                if (Math.abs(frontendPrice - halfKgRate) < 0.01 || 
+                    Math.abs(frontendPrice - oneKgRate) < 0.01 || 
+                    Math.abs(frontendPrice - pastryPrice) < 0.01) {
                     actualPrice = frontendPrice;
                 } else {
                     throw new Error(`Invalid price for cake ${product.name}`);
