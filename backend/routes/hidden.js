@@ -63,7 +63,7 @@ router.post('/login', (req, res) => {
 router.get('/admin-panel', requireSuperadminSession, async (req, res) => {
     try {
         const admins = await User.find({ role: 'admin' })
-            .select('username fullName shopName branch isActive packExpiry suspendedReason createdAt')
+            .select('username fullName shopName branch isActive packExpiry suspendedReason employeeLimit createdAt')
             .sort({ createdAt: -1 });
         
         res.render('hidden-admin-panel', { admins });
@@ -171,6 +171,35 @@ router.post('/update-expiry/:id', requireSuperadminSession, async (req, res) => 
     } catch (error) {
         console.error('Update expiry error:', error);
         req.flash('error_msg', 'Error updating pack expiry');
+        return res.redirect('/.hidden/admin-panel');
+    }
+});
+
+// POST /.hidden/update-employee-limit/:id - Update employee limit
+router.post('/update-employee-limit/:id', requireSuperadminSession, async (req, res) => {
+    try {
+        const { employeeLimit } = req.body;
+        const admin = await User.findOne({ _id: req.params.id, role: 'admin' });
+        
+        if (!admin) {
+            req.flash('error_msg', 'Admin not found');
+            return res.redirect('/.hidden/admin-panel');
+        }
+
+        const limit = parseInt(employeeLimit);
+        if (isNaN(limit) || limit < 0) {
+            req.flash('error_msg', 'Invalid employee limit. Must be a positive number.');
+            return res.redirect('/.hidden/admin-panel');
+        }
+        
+        admin.employeeLimit = limit;
+        await admin.save();
+        
+        req.flash('success_msg', `Employee limit updated to ${limit} for ${admin.username}`);
+        return res.redirect('/.hidden/admin-panel');
+    } catch (error) {
+        console.error('Update employee limit error:', error);
+        req.flash('error_msg', 'Error updating employee limit');
         return res.redirect('/.hidden/admin-panel');
     }
 });

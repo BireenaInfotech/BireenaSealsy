@@ -541,6 +541,35 @@ router.post('/employee/create', isAuthenticated, isAdmin, async (req, res) => {
             });
         }
 
+        // 🔒 CHECK EMPLOYEE LIMIT
+        const adminId = req.session.user.role === 'admin' ? req.session.user.id : req.session.user.adminId;
+        const admin = await User.findById(adminId);
+        
+        if (!admin) {
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Admin account not found' 
+            });
+        }
+
+        // Count existing employees for this admin
+        const employeeCount = await User.countDocuments({ 
+            adminId: adminId,
+            role: 'staff',
+            isActive: true
+        });
+
+        const employeeLimit = admin.employeeLimit || 2;
+
+        if (employeeCount >= employeeLimit) {
+            return res.status(403).json({ 
+                success: false, 
+                message: `Employee limit reached! You can create maximum ${employeeLimit} employees. Current: ${employeeCount}. Contact super admin to increase your limit.`,
+                currentCount: employeeCount,
+                limit: employeeLimit
+            });
+        }
+
         // Check if username exists (case-insensitive)
         const existingUsername = await User.findOne({ 
             username: { $regex: new RegExp(`^${username}$`, 'i') }

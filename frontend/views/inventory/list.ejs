@@ -180,9 +180,33 @@
                                             <% } %>
                                         </td>
                                         <td><%= product.category %></td>
-                                        <td>₹<%= product.price.toFixed(2) %></td>
-                                        <td><strong><%= product.stock %></strong></td>
-                                        <td><%= product.unit %></td>
+                                        <td>
+                                            <% if (product.category && product.category.toLowerCase().includes('cake') && (product.halfKgPrice > 0 || product.oneKgPrice > 0)) { %>
+                                                <small style="display: block; line-height: 1.4;">
+                                                    <% if (product.halfKgPrice > 0) { %>
+                                                        ½kg: ₹<%= product.halfKgPrice.toFixed(2) %><br>
+                                                    <% } %>
+                                                    <% if (product.oneKgPrice > 0) { %>
+                                                        1kg: ₹<%= product.oneKgPrice.toFixed(2) %>
+                                                    <% } %>
+                                                </small>
+                                            <% } else { %>
+                                                ₹<%= product.price.toFixed(2) %>
+                                            <% } %>
+                                        </td>
+                                        <td>
+                                            <% if (product.trackStock === false) { %>
+                                                <span class="text-muted">-</span>
+                                            <% } else { %>
+                                                <strong><%= product.stock %></strong>
+                                            <% } %>
+                                        </td>
+                                        <td>
+                                            <%= product.unit %>
+                                            <% if (product.unit === 'gms' && product.gramAmount > 0) { %>
+                                                <small style="display: block; color: #6b7280;">(<%= product.gramAmount %>g)</small>
+                                            <% } %>
+                                        </td>
                                         <td>
                                             <% if (product.addedBy) { %>
                                                 <%= product.addedBy.fullName || product.addedBy.username %>
@@ -192,7 +216,9 @@
                                         </td>
                                         <td><%= new Date(product.createdAt).toLocaleDateString() %></td>
                                         <td>
-                                            <% if (product.stock === 0) { %>
+                                            <% if (product.trackStock === false) { %>
+                                                <span class="badge" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">MADE TO ORDER</span>
+                                            <% } else if (product.stock === 0) { %>
                                                 <span class="badge bg-secondary">OUT OF STOCK</span>
                                             <% } else if (product.stock <= product.reorderLevel) { %>
                                                 <span class="badge bg-warning">LOW STOCK</span>

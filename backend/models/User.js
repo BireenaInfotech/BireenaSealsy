@@ -68,6 +68,23 @@ const userSchema = new mongoose.Schema({
         required: false,
         trim: true
     },
+    shopLogo: {
+        type: String,
+        required: false,
+        trim: true
+    },
+    shopQRCode: {
+        type: String,
+        required: false,
+        trim: true
+    },
+    billFooterText: {
+        type: String,
+        required: false,
+        trim: true,
+        maxlength: 200,
+        default: 'This is a computer-generated bill'
+    },
     branch: {
         type: String,
         required: function() {
@@ -110,6 +127,14 @@ const userSchema = new mongoose.Schema({
         ref: 'User',
         default: null,
         index: true
+    },
+    employeeLimit: {
+        type: Number,
+        default: 2,
+        min: 0,
+        required: function() {
+            return this.role === 'admin';
+        }
     },
     resetPasswordToken: {
         type: String,

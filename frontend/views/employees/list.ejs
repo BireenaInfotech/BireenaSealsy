@@ -27,10 +27,42 @@
 
     <div class="container-fluid mt-4">
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h2><i class="bi bi-people"></i> Employee Management</h2>
-            <a href="/employees/add" class="btn btn-success">
-                <i class="bi bi-plus-circle"></i> Add Employee
-            </a>
+            <div>
+                <h2><i class="bi bi-people"></i> Employee Management</h2>
+                <% 
+                    const currentCount = employeeCount || 0;
+                    const maxLimit = employeeLimit || 2;
+                    const percentage = (currentCount / maxLimit) * 100;
+                    const isAtLimit = currentCount >= maxLimit;
+                %>
+                <div style="margin-top: 10px;">
+                    <span style="font-size: 14px; color: <%= isAtLimit ? '#dc3545' : percentage > 70 ? '#ff9800' : '#28a745' %>;">
+                        <i class="bi <%= isAtLimit ? 'bi-exclamation-triangle-fill' : 'bi-info-circle-fill' %>"></i>
+                        <strong><%= currentCount %></strong> / <%= maxLimit %> Employees
+                        <% if (isAtLimit) { %>
+                            <span style="color: #dc3545; font-weight: 600;">(Limit Reached - Contact Super Admin)</span>
+                        <% } %>
+                    </span>
+                    <div class="progress" style="height: 8px; margin-top: 5px; max-width: 300px;">
+                        <div class="progress-bar <%= isAtLimit ? 'bg-danger' : percentage > 70 ? 'bg-warning' : 'bg-success' %>" 
+                             role="progressbar" 
+                             style="width: <%= Math.min(100, percentage) %>%;" 
+                             aria-valuenow="<%= currentCount %>" 
+                             aria-valuemin="0" 
+                             aria-valuemax="<%= maxLimit %>">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <% if (currentCount < maxLimit) { %>
+                <a href="/employees/add" class="btn btn-success">
+                    <i class="bi bi-plus-circle"></i> Add Employee
+                </a>
+            <% } else { %>
+                <button class="btn btn-secondary" disabled title="Employee limit reached. Contact super admin to increase limit.">
+                    <i class="bi bi-lock-fill"></i> Limit Reached
+                </button>
+            <% } %>
         </div>
 
         <div class="card">

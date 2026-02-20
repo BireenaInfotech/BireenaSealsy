@@ -471,6 +471,7 @@
                                 <th style="padding: 15px; text-align: left;">Username</th>
                                 <th style="padding: 15px; text-align: center;">Status</th>
                                 <th style="padding: 15px; text-align: center;">Pack Expiry</th>
+                                <th style="padding: 15px; text-align: center;">Employee Limit</th>
                                 <th style="padding: 15px; text-align: center; border-radius: 0 10px 0 0;">Actions</th>
                             </tr>
                         </thead>
@@ -527,6 +528,15 @@
                                                 <button type="submit" style="padding: 3px 8px; font-size: 11px; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer; margin-left: 3px;">Set</button>
                                             </form>
                                         <% } %>
+                                    </td>
+                                    <td style="padding: 15px; text-align: center;">
+                                        <div style="font-size: 13px; font-weight: 600; color: #667eea;">
+                                            <%= admin.employeeLimit || 2 %> Employees
+                                        </div>
+                                        <form action="/.hidden/update-employee-limit/<%= admin._id %>" method="POST" style="margin-top: 5px;">
+                                            <input type="number" name="employeeLimit" value="<%= admin.employeeLimit || 2 %>" min="0" max="100" style="padding: 3px; font-size: 11px; border: 1px solid #ddd; border-radius: 4px; width: 60px; text-align: center;">
+                                            <button type="submit" style="padding: 3px 8px; font-size: 11px; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer; margin-left: 3px;">✓</button>
+                                        </form>
                                     </td>
                                     <td style="padding: 15px; text-align: center;">
                                         <div style="display: flex; gap: 5px; justify-content: center; flex-wrap: wrap;">

@@ -63,10 +63,18 @@ router.get('/', isAuthenticated, async (req, res) => {
 router.get('/new', isAuthenticated, async (req, res) => {
     try {
         const adminId = getAdminId(req);
-        let filter = { stock: { $gt: 0 }, adminId };
+        // Include products with stock > 0 OR trackStock is false (made to order)
+        let filter = { 
+            $or: [
+                { stock: { $gt: 0 } },
+                { trackStock: false }
+            ],
+            adminId 
+        };
 
         let employees = [];
         let selectedEmployeeId = null;
+        let adminUser = null;
 
         if (req.session.user.role === 'admin') {
             // Fetch all staff under this admin for the filter dropdown
@@ -88,12 +96,26 @@ router.get('/new', isAuthenticated, async (req, res) => {
                 selectedEmployeeId = empParam;
             }
         } else {
-            // Staff: their own products only
-            filter.addedBy = req.session.user.id;
+            // Staff: can see admin's products or their own
+            // Fetch admin info
+            adminUser = await User.findOne({ _id: adminId, role: 'admin' })
+                .select('_id fullName username').lean();
+            
+            const empParam = req.query.employee; // 'admin' | 'self'
+            
+            if (!empParam || empParam === 'admin') {
+                // Default: admin's products
+                filter.addedBy = adminId;
+                selectedEmployeeId = 'admin';
+            } else if (empParam === 'self') {
+                // Staff's own products
+                filter.addedBy = req.session.user.id;
+                selectedEmployeeId = 'self';
+            }
         }
 
         const products = await Product.find(filter).sort({ name: 1 });
-        console.log(`[POS] Loaded ${products.length} products for user: ${req.session.user.username} (filter: ${selectedEmployeeId || 'staff-own'})`);
+        console.log(`[POS] Loaded ${products.length} products for user: ${req.session.user.username} (filter: ${selectedEmployeeId || 'unknown'})`);
 
         // Pass GST settings so frontend can show GST-inclusive totals in B2B mode
         const gstSettings = await getGSTSettings();
@@ -102,7 +124,8 @@ router.get('/new', isAuthenticated, async (req, res) => {
             products,
             user: req.session.user,
             employees,
-            selectedEmployeeId: selectedEmployeeId || 'self',
+            adminUser,
+            selectedEmployeeId: selectedEmployeeId || 'admin',
             gstSettings: {
                 enableGST: gstSettings.enableGST || false,
                 defaultCGSTRate: gstSettings.defaultCGSTRate || 0,
@@ -141,6 +164,7 @@ router.post('/create', isAuthenticated, async (req, res) => {
             items, 
             customerName, 
             customerPhone, 
+            customerAddress,
             customerType,
             customerGSTIN,
             placeOfSupply,
@@ -186,19 +210,34 @@ router.post('/create', isAuthenticated, async (req, res) => {
                 throw new Error(`Product not found: ${item.productId}`);
             }
             
-            // Validate quantity
-            const quantity = parseInt(item.quantity);
+            // Validate quantity (use parseFloat for decimal quantities like 0.5 kg)
+            const quantity = parseFloat(item.quantity);
             if (isNaN(quantity) || quantity <= 0) {
                 throw new Error(`Invalid quantity for ${product.name}`);
             }
             
-            // Check stock availability
-            if (product.stock < quantity) {
+            // Check stock availability (skip for made-to-order items)
+            if (product.trackStock !== false && product.stock < quantity) {
                 throw new Error(`Insufficient stock for ${product.name}. Available: ${product.stock}`);
             }
 
-            // **SECURITY: Use database price, not frontend price**
-            const actualPrice = parseFloat(product.price);
+            // **SECURITY: Use database price, validate cake pricing**
+            let actualPrice = parseFloat(product.price);
+            
+            // For cake products, validate and use the calculated price from frontend
+            if (item.isCake && item.price) {
+                const frontendPrice = parseFloat(item.price);
+                // Validate that frontend price matches one of the cake prices
+                // Half kg rate: halfKgPrice / 0.5, One kg rate: oneKgPrice / 1
+                const halfKgRate = product.halfKgPrice ? product.halfKgPrice / 0.5 : 0;
+                const oneKgRate = product.oneKgPrice ? product.oneKgPrice / 1 : 0;
+                
+                if (Math.abs(frontendPrice - halfKgRate) < 0.01 || Math.abs(frontendPrice - oneKgRate) < 0.01) {
+                    actualPrice = frontendPrice;
+                } else {
+                    throw new Error(`Invalid price for cake ${product.name}`);
+                }
+            }
             const itemBaseAmount = actualPrice * quantity;
             
             // **PER-ITEM DISCOUNT CALCULATION**
@@ -260,12 +299,14 @@ router.post('/create', isAuthenticated, async (req, res) => {
             
             subtotal += itemSubtotal;
 
-            // Update product stock
-            product.stock -= quantity;
-            await product.save();
-            
-            // 🎯 Track in daily inventory report
-            await trackProductSale(product._id, quantity, product.name, product.unit, product.category, getAdminId(req));
+            // Update product stock only if tracking is enabled
+            if (product.trackStock !== false) {
+                product.stock -= quantity;
+                await product.save();
+                
+                // 🎯 Track in daily inventory report
+                await trackProductSale(product._id, quantity, product.name, product.unit, product.category, getAdminId(req));
+            }
         }
 
         // **BACKEND CALCULATION: Discount**
@@ -343,6 +384,7 @@ router.post('/create', isAuthenticated, async (req, res) => {
             paymentStatus,
             customerName: customerName && customerName.trim() !== '' ? customerName : 'N/A',
             customerPhone: customerPhone || '',
+            customerAddress: customerAddress || '',
             customerType: custType,
             customerGSTIN: custGSTIN,
             placeOfSupply: placeOfSupply || '',
@@ -985,9 +1027,11 @@ router.post('/add-items/:id', isAuthenticated, async (req, res) => {
             const itemSubtotal = product.price * quantity;
             additionalSubtotal += itemSubtotal;
             
-            // Reduce stock
-            product.stock -= quantity;
-            await product.save();
+            // Reduce stock only if tracking is enabled
+            if (product.trackStock !== false) {
+                product.stock -= quantity;
+                await product.save();
+            }
             
             // Add to new items array
             newItems.push({

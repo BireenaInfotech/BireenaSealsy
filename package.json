@@ -41,6 +41,7 @@
     "luxon": "^3.7.2",
     "method-override": "^3.0.0",
     "mongoose": "^8.8.3",
+    "multer": "^2.0.0-rc.4",
     "nodemailer": "^7.0.10",
     "terser": "^5.46.0",
     "twilio": "^4.19.0",

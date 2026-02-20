@@ -9,7 +9,17 @@ router.get('/', isAuthenticated, isAdmin, async (req, res) => {
         // Admin only sees their shop's employees
         const adminId = getAdminId(req);
         const employees = await User.find({ role: 'staff', adminId }).sort({ createdAt: -1 });
-        res.render('employees/list', { employees });
+        
+        // Get admin info for employee limit
+        const admin = await User.findById(adminId);
+        const employeeLimit = admin ? (admin.employeeLimit || 2) : 2;
+        const employeeCount = employees.length;
+        
+        res.render('employees/list', { 
+            employees, 
+            employeeCount, 
+            employeeLimit 
+        });
     } catch (error) {
         console.error('Employee list error:', error);
         req.flash('error_msg', 'Error loading employees');

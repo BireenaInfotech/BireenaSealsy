@@ -76,8 +76,8 @@
             }
             
             .qr-section img {
-                width: 120px;
-                height: 120px;
+                width: 120px !important;
+                height: 120px !important;
             }
         }
         
@@ -147,8 +147,12 @@
             margin: 20px 0;
         }
         .qr-section img {
+            width: 150px;
+            height: 150px;
             border: 2px solid #333;
             padding: 5px;
+            object-fit: contain;
+            background: white;
         }
         .footer {
             text-align: center;
@@ -233,8 +237,8 @@
             }
             
             .qr-section img {
-                width: 120px;
-                height: 120px;
+                width: 120px !important;
+                height: 120px !important;
             }
         }
         
@@ -263,6 +267,11 @@
         </div>
 
         <div class="header">
+            <% if (shopInfo.shopLogo && shopInfo.shopLogo.trim() !== '') { %>
+                <div style="text-align: center; margin-bottom: 10px;">
+                    <img src="<%= shopInfo.shopLogo %>" alt="Shop Logo" style="max-width: 120px; max-height: 80px; object-fit: contain;">
+                </div>
+            <% } %>
             <h1><%= shopInfo.shopName %></h1>
             <% if (shopInfo.shopAddress && shopInfo.shopAddress.trim() !== '') { %>
                 <p style="margin: 5px 0;"><%= shopInfo.shopAddress %></p>
@@ -427,14 +436,21 @@
     <% } %>
 
     <div class="qr-section">
-        <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=Bill:<%= sale.billNumber %>|Total:Rs.<%= sale.total.toFixed(2) %>|Customer:<%= encodeURIComponent(sale.customerName) %>|Date:<%= new Date(sale.createdAt).toLocaleDateString() %>" 
-             alt="QR Code">
-        <p style="font-size: 11px; margin-top: 5px; color: #666;">Scan for Bill Details</p>
+        <% if (shopInfo.shopQRCode && shopInfo.shopQRCode.trim() !== '') { %>
+            <!-- Custom QR Code from profile -->
+            <img src="<%= shopInfo.shopQRCode %>" alt="Shop QR Code">
+            <p style="font-size: 11px; margin-top: 5px; color: #666;">Scan for UPI Payment / Contact</p>
+        <% } else { %>
+            <!-- Auto-generated Bill QR Code -->
+            <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=Bill:<%= sale.billNumber %>|Total:Rs.<%= sale.total.toFixed(2) %>|Customer:<%= encodeURIComponent(sale.customerName) %>|Date:<%= new Date(sale.createdAt).toLocaleDateString() %>" 
+                 alt="QR Code">
+            <p style="font-size: 11px; margin-top: 5px; color: #666;">Scan for Bill Details</p>
+        <% } %>
     </div>
 
     <div class="footer">
         <p><strong>Thank you for your purchase!</strong></p>
-        <p style="font-size: 11px; color: #666; margin-top: 5px;">This is a computer-generated bill</p>
+        <p style="font-size: 11px; color: #666; margin-top: 5px;"><%= shopInfo.billFooterText || 'This is a computer-generated bill' %></p>
     </div>
     
     </div>

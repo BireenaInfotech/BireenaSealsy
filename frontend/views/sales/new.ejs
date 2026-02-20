@@ -60,6 +60,35 @@
                 padding-left: 4px;
             }
         }
+
+        /* Cake Weight Selection Modal Styles */
+        .cake-weight-options {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .cake-weight-btn {
+            width: 100%;
+            padding: 20px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }
+
+        .cake-weight-btn:hover {
+            background: #fef3c7;
+            border-color: #f59e0b;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        .cake-weight-btn:active {
+            transform: translateY(0);
+        }
     </style>
 </head>
 <body>
@@ -74,6 +103,9 @@
                             <i class="bi bi-list"></i>
                         </button>
                         <div class="menu-dropdown" id="menuDropdown">
+                            <a href="/dashboard" class="menu-dropdown-item">
+                                <i class="bi bi-speedometer2"></i> Dashboard
+                            </a>
                             <a href="/sales" class="menu-dropdown-item">
                                 <i class="bi bi-receipt"></i> Sales History
                             </a>
@@ -115,11 +147,11 @@
                 <% } %>
                 
                 <div class="table-tabs">
-                    <button class="table-tab active" data-table="1">PERS 1<br><small>₹<span id="table1-total">0.0</span></small></button>
-                    <button class="table-tab" data-table="2">PERS 2<br><small>₹<span id="table2-total">0.0</span></small></button>
-                    <button class="table-tab" data-table="3">PERS 3<br><small>₹<span id="table3-total">0.0</span></small></button>
-                    <button class="table-tab" data-table="4">PERS 4<br><small>₹<span id="table4-total">0.0</span></small></button>
-                    <button class="table-tab" data-table="5">PERS 5<br><small>₹<span id="table5-total">0.0</span></small></button>
+                    <button class="table-tab active" data-table="1">PERS 1<br><small>₹<span id="table1-total">0.00</span></small></button>
+                    <button class="table-tab" data-table="2">PERS 2<br><small>₹<span id="table2-total">0.00</span></small></button>
+                    <button class="table-tab" data-table="3">PERS 3<br><small>₹<span id="table3-total">0.00</span></small></button>
+                    <button class="table-tab" data-table="4">PERS 4<br><small>₹<span id="table4-total">0.00</span></small></button>
+                    <button class="table-tab" data-table="5">PERS 5<br><small>₹<span id="table5-total">0.00</span></small></button>
                     <button class="add-person-btn" id="addPersonBtn" onclick="addNewPerson()">
                         <i class="bi bi-plus-circle"></i>
                     </button>
@@ -129,7 +161,7 @@
             <div class="pos-header-right">
                 <button class="print-btn" onclick="openPrintModal()">
                     <i class="bi bi-printer-fill"></i> PRINT
-                    <span class="total-display">₹<span id="header-total">0.0</span></span>
+                    <span class="total-display">₹<span id="header-total">0.00</span></span>
                 </button>
                 <button class="btn btn-outline-light btn-sm" onclick="window.location.href='/logout'">
                     <i class="bi bi-box-arrow-right"></i>
@@ -164,7 +196,7 @@
 
             <!-- Products Area -->
             <div class="products-area">
-                <% if (typeof user !== 'undefined' && user && user.role === 'admin') { %>
+                <% if (typeof user !== 'undefined' && user) { %>
                 <div class="branch-filter-bar" style="display:flex; flex-wrap:wrap; align-items:center; gap:10px; padding:8px 12px; background:#f0f0ff; border-bottom:1px solid #d0d0f0;">
                     <div style="display:flex; align-items:center; gap:10px; flex:1; min-width:250px;">
                         <i class="bi bi-funnel-fill" style="color:#6366f1; font-size:16px;"></i>
@@ -172,31 +204,48 @@
                         <select id="branchFilter"
                             onchange="window.location.href='/sales/new?employee='+this.value"
                             style="flex:1; min-width:180px; max-width:280px; padding:5px 10px; border-radius:8px; border:1.5px solid #6366f1; font-size:13px; font-weight:600; color:#374151; background:#fff; cursor:pointer;">
-                            <option value="self" <%= (typeof selectedEmployeeId !== 'undefined' && selectedEmployeeId === 'self') ? 'selected' : '' %>>
-                                &#128100; My Products
-                            </option>
-                            <option value="all" <%= (typeof selectedEmployeeId !== 'undefined' && selectedEmployeeId === 'all') ? 'selected' : '' %>>
-                                &#127978; All Products (Every Branch)
-                            </option>
-                            <% if (typeof employees !== 'undefined' && employees.length > 0) { %>
-                                <optgroup label="── Employees ──">
-                                <% employees.forEach(function(emp) { %>
-                                    <option value="<%= emp._id %>" <%= (typeof selectedEmployeeId !== 'undefined' && selectedEmployeeId === emp._id.toString()) ? 'selected' : '' %>>
-                                        &#128101; <%= emp.fullName || emp.username %> &mdash; <%= emp.branch || 'Main Branch' %>
-                                    </option>
-                                <% }); %>
-                                </optgroup>
+                            <% if (user.role === 'admin') { %>
+                                <option value="self" <%= (typeof selectedEmployeeId !== 'undefined' && selectedEmployeeId === 'self') ? 'selected' : '' %>>
+                                    &#128100; My Products
+                                </option>
+                                <option value="all" <%= (typeof selectedEmployeeId !== 'undefined' && selectedEmployeeId === 'all') ? 'selected' : '' %>>
+                                    &#127978; All Products (Every Branch)
+                                </option>
+                                <% if (typeof employees !== 'undefined' && employees.length > 0) { %>
+                                    <optgroup label="── Employees ──">
+                                    <% employees.forEach(function(emp) { %>
+                                        <option value="<%= emp._id %>" <%= (typeof selectedEmployeeId !== 'undefined' && selectedEmployeeId === emp._id.toString()) ? 'selected' : '' %>>
+                                            &#128101; <%= emp.fullName || emp.username %> &mdash; <%= emp.branch || 'Main Branch' %>
+                                        </option>
+                                    <% }); %>
+                                    </optgroup>
+                                <% } %>
+                            <% } else { %>
+                                <option value="admin" <%= (typeof selectedEmployeeId !== 'undefined' && selectedEmployeeId === 'admin') ? 'selected' : '' %>>
+                                    &#128100; Admin's Products
+                                </option>
+                                <option value="self" <%= (typeof selectedEmployeeId !== 'undefined' && selectedEmployeeId === 'self') ? 'selected' : '' %>>
+                                    &#128101; My Products
+                                </option>
                             <% } %>
                         </select>
                     </div>
                     <span style="font-size:12px; color:#6b7280; white-space:nowrap;">
                         <strong style="color:#6366f1;"><%= products.length %></strong> products
-                        <% if (typeof selectedEmployeeId !== 'undefined' && selectedEmployeeId !== 'self' && selectedEmployeeId !== 'all' && typeof employees !== 'undefined') { %>
-                            &nbsp;&bull;&nbsp;
-                            <% const selEmp = employees.find(e => e._id.toString() === selectedEmployeeId); %>
-                            <%= selEmp ? (selEmp.fullName || selEmp.username) : '' %>
-                        <% } else if (typeof selectedEmployeeId !== 'undefined' && selectedEmployeeId === 'all') { %>
-                            &nbsp;&bull;&nbsp;All branches
+                        <% if (user.role === 'admin') { %>
+                            <% if (typeof selectedEmployeeId !== 'undefined' && selectedEmployeeId !== 'self' && selectedEmployeeId !== 'all' && typeof employees !== 'undefined') { %>
+                                &nbsp;&bull;&nbsp;
+                                <% const selEmp = employees.find(e => e._id.toString() === selectedEmployeeId); %>
+                                <%= selEmp ? (selEmp.fullName || selEmp.username) : '' %>
+                            <% } else if (typeof selectedEmployeeId !== 'undefined' && selectedEmployeeId === 'all') { %>
+                                &nbsp;&bull;&nbsp;All branches
+                            <% } %>
+                        <% } else { %>
+                            <% if (typeof selectedEmployeeId !== 'undefined' && selectedEmployeeId === 'admin' && typeof adminUser !== 'undefined' && adminUser) { %>
+                                &nbsp;&bull;&nbsp;<%= adminUser.fullName || adminUser.username %>
+                            <% } else if (typeof selectedEmployeeId !== 'undefined' && selectedEmployeeId === 'self') { %>
+                                &nbsp;&bull;&nbsp;<%= user.fullName || user.username %>
+                            <% } %>
                         <% } %>
                     </span>
                 </div>
@@ -211,7 +260,11 @@
                              data-id="<%= product._id %>"
                              data-name="<%= product.name %>"
                              data-price="<%= product.price %>"
+                             data-halfkgprice="<%= product.halfKgPrice || 0 %>"
+                             data-onekgprice="<%= product.oneKgPrice || 0 %>"
                              data-stock="<%= product.stock %>"
+                             data-unit="<%= product.unit || 'piece' %>"
+                             data-gramamount="<%= product.gramAmount || 0 %>"
                              data-category="<%= product.category || 'Other' %>">
                             <% if (product.image && product.image.trim() !== '') { %>
                                 <img src="<%= product.image %>" 
@@ -227,16 +280,32 @@
                                     <%= product.name.substring(0,2).toUpperCase() %>
                                 </div>
                             <% } %>
-                            <div class="product-name"><%= product.name %></div>
+                            <div class="product-name">
+                                <%= product.name %>
+                                <% if (product.unit === 'gms' && product.gramAmount > 0) { %>
+                                    <small style="display: block; color: #6b7280; font-size: 11px;"><%= product.gramAmount %>g</small>
+                                <% } %>
+                            </div>
                             <div class="product-price-stock">
-                                <span class="product-price">₹<%= product.price.toFixed(1) %></span>
-                                <span class="product-stock <%= product.stock < 10 ? 'low' : '' %>">
-                                    Stock <%= product.stock.toFixed(1) %>
-                                </span>
+                                <% if (product.category && product.category.toLowerCase().includes('cake') && (product.halfKgPrice > 0 || product.oneKgPrice > 0)) { %>
+                                    <div style="font-size: 12px; line-height: 1.3;">
+                                        <span class="product-price" style="display: block;">½kg: ₹<%= (product.halfKgPrice || 0).toFixed(2) %></span>
+                                        <span class="product-price" style="display: block;">1kg: ₹<%= (product.oneKgPrice || 0).toFixed(2) %></span>
+                                    </div>
+                                <% } else { %>
+                                    <span class="product-price">₹<%= product.price.toFixed(2) %></span>
+                                <% } %>
+                                <% if (product.trackStock === false || product.stock === 0) { %>
+                                    <span class="product-stock" style="color: #10b981;">Made to Order</span>
+                                <% } else { %>
+                                    <span class="product-stock <%= product.stock < 10 ? 'low' : '' %>">
+                                        Stock <%= product.stock.toFixed(1) %>
+                                    </span>
+                                <% } %>
                             </div>
                             <div class="quantity-controls" style="display:none;">
                                 <button class="qty-btn" onclick="event.stopPropagation(); decreaseQty(this)">-</button>
-                                <span class="qty-display" onclick="event.stopPropagation(); editQuantity(this)">0</span>
+                                <span class="qty-display" onclick="event.stopPropagation(); editQuantity(this)">0.5</span>
                                 <button class="qty-btn" onclick="event.stopPropagation(); increaseQty(this)">+</button>
                             </div>
                             <button class="remove-btn" style="display:none;" onclick="event.stopPropagation(); removeFromCart(this)">×</button>
@@ -358,6 +427,11 @@
                         <label>Mobile Number <span class="text-danger">*</span></label>
                         <input type="tel" class="form-control" name="customerPhoneAdvance" id="customerPhoneAdvance" placeholder="Enter mobile number" maxlength="10">
                     </div>
+
+                    <div class="form-group">
+                        <label>Address (optional)</label>
+                        <textarea class="form-control" name="customerAddressAdvance" id="customerAddressAdvance" placeholder="Enter customer address" rows="2"></textarea>
+                    </div>
                 </div>
 
                 <!-- Basic Fields (Visible by default) -->
@@ -371,6 +445,25 @@
                         <label>Mobile Number (optional)</label>
                         <input type="tel" class="form-control" name="customerPhone" placeholder="Enter mobile number" maxlength="10">
                     </div>
+
+                    <div class="form-group">
+                        <label>Address (optional)</label>
+                        <textarea class="form-control" name="customerAddress" placeholder="Enter customer address" rows="2"></textarea>
+                    </div>
+                </div>
+
+                <!-- Discount Section -->
+                <div class="form-group" style="border-top: 1px solid #e0e0e0; padding-top: 15px; margin-top: 15px;">
+                    <label style="font-weight: 600; color: #6366f1;">💰 Discount</label>
+                    <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                        <button type="button" class="btn btn-sm" id="discountPercentBtn" onclick="setDiscountType('percentage')" style="flex: 1; background: #6366f1; color: white; border: 2px solid #6366f1;">% Percentage</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="discountRsBtn" onclick="setDiscountType('fixed')" style="flex: 1; border: 2px solid #ddd;">₹ Rupees</button>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <input type="number" class="form-control" id="modalDiscountValue" value="0" min="0" step="0.01" placeholder="Enter discount" oninput="updateModalTotals()" style="flex: 1;">
+                        <span id="discountDisplayType" style="font-weight: 600; color: #6366f1; min-width: 30px;">%</span>
+                    </div>
+                    <small class="text-muted" id="discountHelp">Enter percentage (0-100%)</small>
                 </div>
 
                 <div class="form-group">
@@ -395,19 +488,55 @@
 
                 <div class="cart-summary">
                     <div id="modalCartItems"></div>
+                    <div style="border-top: 1px solid #eee; padding-top: 8px; margin-top: 8px; font-size: 13px; color: #666;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                            <span>Subtotal:</span>
+                            <span>₹<span id="modalSubtotal">0.00</span></span>
+                        </div>
+                        <div id="modalDiscountDisplay" style="display: none; color: #f59e0b; margin-bottom: 4px;">
+                            <div style="display: flex; justify-content: space-between;">
+                                <span>Discount (<span id="modalDiscountLabel"></span>):</span>
+                                <span>- ₹<span id="modalDiscountAmount">0.00</span></span>
+                            </div>
+                        </div>
+                    </div>
                     <div class="cart-total">
                         <span>Total:</span>
-                        <span>₹<span id="modalTotal">0.0</span></span>
+                        <span>₹<span id="modalTotal">0.00</span></span>
                     </div>
                 </div>
 
                 <input type="hidden" name="items" id="billItems">
                 <input type="hidden" name="paymentMethod" id="paymentMethod" value="cash">
                 <input type="hidden" name="discount" id="billDiscount">
-                <input type="hidden" name="discountType" value="percentage">
+                <input type="hidden" name="discountType" id="billDiscountType" value="percentage">
+                <input type="hidden" name="customerAddress" id="hiddenCustomerAddress">
 
                 <button type="submit" class="print-bill-btn">PRINT BILL</button>
             </form>
+        </div>
+    </div>
+
+    <!-- Cake Weight Selection Modal -->
+    <div class="print-modal" id="cakeWeightModal">
+        <div class="print-modal-content" style="max-width: 400px;">
+            <div class="modal-header">
+                <h4><i class="bi bi-cake2"></i> Select Cake Weight</h4>
+                <button class="close-modal" onclick="closeCakeWeightModal()">×</button>
+            </div>
+            <div class="modal-body" style="padding: 20px;">
+                <p id="cakeProductName" style="margin-bottom: 20px; font-weight: 600; color: #333;"></p>
+                <div class="cake-weight-options">
+                    <button class="cake-weight-btn" onclick="selectCakeWeight('half')" id="halfKgOption">
+                        <div style="font-size: 18px; font-weight: 600;">Half Kg (0.5 kg)</div>
+                        <div style="font-size: 16px; color: #10b981; margin-top: 5px;">₹<span id="halfKgPriceDisplay">0.00</span></div>
+                    </button>
+                    <button class="cake-weight-btn" onclick="selectCakeWeight('full')" id="fullKgOption">
+                        <div style="font-size: 18px; font-weight: 600;">One Kg (1 kg)</div>
+                        <div style="font-size: 16px; color: #10b981; margin-top: 5px;">₹<span id="fullKgPriceDisplay">0.00</span></div>
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -451,7 +580,7 @@
             const newTab = document.createElement('button');
             newTab.className = 'table-tab';
             newTab.dataset.table = maxPersons;
-            newTab.innerHTML = `PERS ${maxPersons}<br><small>₹<span id="table${maxPersons}-total">0.0</span></small>`;
+            newTab.innerHTML = `PERS ${maxPersons}<br><small>₹<span id="table${maxPersons}-total">0.00</span></small>`;
             
             // Insert before the add button
             tabsContainer.insertBefore(newTab, addBtn);
@@ -513,14 +642,37 @@
             const name = element.dataset.name;
             const price = parseFloat(element.dataset.price);
             const stock = parseFloat(element.dataset.stock);
+            const unit = element.dataset.unit || 'piece';
+            const category = element.dataset.category || '';
+            const halfKgPrice = parseFloat(element.dataset.halfkgprice) || 0;
+            const oneKgPrice = parseFloat(element.dataset.onekgprice) || 0;
+            const gramAmount = parseInt(element.dataset.gramamount) || 0;
+
+            // Check if this is a cake product with weight-based pricing
+            if (category.toLowerCase().includes('cake') && (halfKgPrice > 0 || oneKgPrice > 0)) {
+                // Show weight selection modal
+                console.log(`🎂 Cake product detected: ${name}`, { halfKgPrice, oneKgPrice });
+                openCakeWeightModal(element, id, name, stock, unit, halfKgPrice, oneKgPrice);
+                return;
+            }
 
             if (!cart[id]) {
+                // For kg products, start with 0.5 kg, for others start with 1
+                const initialQty = unit === 'kg' ? 0.5 : 1;
+                
+                // Build name with gram amount for GMS products
+                let displayName = name;
+                if (unit === 'gms' && gramAmount > 0) {
+                    displayName = `${name} (${gramAmount}g)`;
+                }
+                
                 cart[id] = {
                     id: id,
-                    name: name,
+                    name: displayName,
                     price: price,
-                    quantity: 1,
-                    stock: stock
+                    quantity: initialQty,
+                    stock: stock,
+                    unit: unit
                 };
                 
                 updateProductCardDisplay(element, cart[id]);
@@ -535,7 +687,9 @@
                 element.classList.add('in-cart');
                 element.querySelector('.quantity-controls').style.display = 'flex';
                 element.querySelector('.remove-btn').style.display = 'block';
-                element.querySelector('.qty-display').textContent = item.quantity;
+                // Display quantity based on unit type
+                const displayQty = item.unit === 'kg' ? item.quantity.toFixed(1) : Math.floor(item.quantity);
+                element.querySelector('.qty-display').textContent = displayQty;
             } else {
                 element.classList.remove('in-cart');
                 element.querySelector('.quantity-controls').style.display = 'none';
@@ -548,10 +702,31 @@
             const card = btn.closest('.product-card');
             const id = card.dataset.id;
             const stock = parseFloat(card.dataset.stock);
+            const unit = card.dataset.unit || 'piece';
             
-            if (cart[id] && cart[id].quantity < stock) {
-                cart[id].quantity++;
-                card.querySelector('.qty-display').textContent = cart[id].quantity;
+            if (cart[id]) {
+                // For cake products, use baseWeight; for kg products, increment by 0.5; for others by 1
+                let increment;
+                if (cart[id].isCake && cart[id].baseWeight) {
+                    increment = cart[id].baseWeight;
+                } else if (unit === 'kg') {
+                    increment = 0.5;
+                } else {
+                    increment = 1;
+                }
+                
+                const newQty = cart[id].quantity + increment;
+                
+                // Check stock limit (only for tracked products with stock > 0)
+                if (stock > 0 && newQty > stock) {
+                    alert(`Maximum stock available is ${stock} ${unit}`);
+                    return;
+                }
+                
+                cart[id].quantity = newQty;
+                // Display with appropriate decimals
+                const displayQty = unit === 'kg' ? newQty.toFixed(1) : Math.floor(newQty);
+                card.querySelector('.qty-display').textContent = displayQty;
                 updateTotals();
             }
         }
@@ -559,11 +734,29 @@
         function decreaseQty(btn) {
             const card = btn.closest('.product-card');
             const id = card.dataset.id;
+            const unit = card.dataset.unit || 'piece';
             
-            if (cart[id] && cart[id].quantity > 1) {
-                cart[id].quantity--;
-                card.querySelector('.qty-display').textContent = cart[id].quantity;
-                updateTotals();
+            if (cart[id]) {
+                // For cake products, use baseWeight; for kg products, decrement by 0.5; for others by 1
+                let decrement, minQty;
+                if (cart[id].isCake && cart[id].baseWeight) {
+                    decrement = cart[id].baseWeight;
+                    minQty = cart[id].baseWeight;
+                } else if (unit === 'kg') {
+                    decrement = 0.5;
+                    minQty = 0.5;
+                } else {
+                    decrement = 1;
+                    minQty = 1;
+                }
+                
+                if (cart[id].quantity > minQty) {
+                    cart[id].quantity -= decrement;
+                    // Display with appropriate decimals
+                    const displayQty = unit === 'kg' ? cart[id].quantity.toFixed(1) : Math.floor(cart[id].quantity);
+                    card.querySelector('.qty-display').textContent = displayQty;
+                    updateTotals();
+                }
             }
         }
 
@@ -572,6 +765,7 @@
             const card = qtyDisplay.closest('.product-card');
             const id = card.dataset.id;
             const stock = parseFloat(card.dataset.stock);
+            const unit = card.dataset.unit || 'piece';
             
             if (!cart[id]) return;
             
@@ -580,12 +774,24 @@
             // Create input element
             const input = document.createElement('input');
             input.type = 'number';
-            input.min = '1';
-            input.max = stock.toString();
-            input.step = '1';
-            input.value = currentQty;
+            
+            // Configure based on unit type
+            if (unit === 'kg') {
+                input.min = '0.01';
+                input.step = '0.01';
+                input.value = currentQty.toFixed(2);
+            } else {
+                input.min = '1';
+                input.step = '1';
+                input.value = Math.floor(currentQty);
+            }
+            
+            if (stock > 0) {
+                input.max = stock.toString();
+            }
+            
             input.className = 'qty-edit-input';
-            input.style.width = '45px';
+            input.style.width = '60px';
             input.style.textAlign = 'center';
             input.style.border = '2px solid #4F46E5';
             input.style.borderRadius = '4px';
@@ -600,19 +806,34 @@
             
             // Save on Enter or blur
             const saveQty = () => {
-                let newQty = parseInt(input.value);
+                let newQty = parseFloat(input.value);
                 
-                // Validate
-                if (isNaN(newQty) || newQty < 1) {
-                    newQty = 1;
-                } else if (newQty > stock) {
-                    newQty = Math.floor(stock);
-                    alert(`Maximum stock available is ${Math.floor(stock)}`);
+                // Validate based on unit
+                if (unit === 'kg') {
+                    if (isNaN(newQty) || newQty < 0.01) {
+                        newQty = 0.5;
+                    }
+                    // Check stock limit (only for tracked products with stock > 0)
+                    if (stock > 0 && newQty > stock) {
+                        newQty = stock;
+                        alert(`Maximum stock available is ${stock} ${unit}`);
+                    }
+                } else {
+                    newQty = parseInt(input.value);
+                    if (isNaN(newQty) || newQty < 1) {
+                        newQty = 1;
+                    }
+                    // Check stock limit (only for tracked products with stock > 0)
+                    if (stock > 0 && newQty > stock) {
+                        newQty = Math.floor(stock);
+                        alert(`Maximum stock available is ${Math.floor(stock)} ${unit}`);
+                    }
                 }
                 
                 // Update cart
                 cart[id].quantity = newQty;
-                qtyDisplay.textContent = newQty;
+                const displayQty = unit === 'kg' ? newQty.toFixed(1) : Math.floor(newQty);
+                qtyDisplay.textContent = displayQty;
                 
                 // Remove input and show span
                 input.remove();
@@ -712,11 +933,11 @@
             const total   = parseFloat((taxable + gst.total).toFixed(2));
             console.log(`📊 [updateTotals] GST=${gst.total}, FINAL TOTAL=${total}`);
 
-            document.getElementById('header-total').textContent = total.toFixed(1);
-            document.getElementById(`table${currentTable}-total`).textContent = total.toFixed(1);
+            document.getElementById('header-total').textContent = total.toFixed(2);
+            document.getElementById(`table${currentTable}-total`).textContent = total.toFixed(2);
 
             if (document.getElementById('modalTotal')) {
-                document.getElementById('modalTotal').textContent = total.toFixed(1);
+                document.getElementById('modalTotal').textContent = total.toFixed(2);
             }
             calculateDue();
         }
@@ -731,8 +952,23 @@
 
             let subtotal = 0;
             Object.values(cart).forEach(item => { subtotal += item.price * item.quantity; });
-            const discountPercent = parseFloat(document.getElementById('discountPercent').value) || 0;
-            const discountAmount  = (subtotal * discountPercent) / 100;
+            
+            // Use modal discount if available
+            const modalDiscountInput = document.getElementById('modalDiscountValue');
+            let discountAmount = 0;
+            if (modalDiscountInput) {
+                const discountValue = parseFloat(modalDiscountInput.value) || 0;
+                if (modalDiscountType === 'percentage') {
+                    discountAmount = (subtotal * discountValue) / 100;
+                } else {
+                    discountAmount = discountValue;
+                }
+            } else {
+                // Fallback to cart discount
+                const discountPercent = parseFloat(document.getElementById('discountPercent').value) || 0;
+                discountAmount = (subtotal * discountPercent) / 100;
+            }
+            
             const taxable = subtotal - discountAmount;
             const gst     = calcGSTAmounts(taxable);
             // Use same rounding as backend to avoid mismatch
@@ -742,7 +978,7 @@
             console.log(`[calculateDue] amountPaid=${amountPaid}, total=${total}, due=${due}`);
             if (amountPaid > 0 && amountPaid < total) {
                 dueDisplay.style.display = 'block';
-                dueAmount.textContent = due.toFixed(1);
+                dueAmount.textContent = due.toFixed(2);
             } else {
                 dueDisplay.style.display = 'none';
             }
@@ -793,27 +1029,29 @@
             let cartHTML = '';
             Object.values(cart).forEach(item => {
                 const itemTotal = item.price * item.quantity;
+                // Format quantity based on unit type
+                const qtyDisplay = item.unit === 'kg' ? 
+                    item.quantity.toFixed(1) + ' ' + item.unit : 
+                    Math.floor(item.quantity) + ' ' + (item.unit || 'piece');
                 cartHTML += `
                     <div class="cart-item">
-                        <span>${item.name} × ${item.quantity}</span>
-                        <span>₹${itemTotal.toFixed(1)}</span>
+                        <span>${item.name} × ${qtyDisplay}</span>
+                        <span>₹${itemTotal.toFixed(2)}</span>
                     </div>
                 `;
             });
             document.getElementById('modalCartItems').innerHTML = cartHTML;
 
-            // Calculate totals with refreshed GST rates
-            let subtotal = 0;
-            Object.values(cart).forEach(item => { subtotal += item.price * item.quantity; });
-            const discountPercent = parseFloat(document.getElementById('discountPercent').value) || 0;
-            const discountAmount  = (subtotal * discountPercent) / 100;
-            const taxable = subtotal - discountAmount;
-            console.log(`[MODAL CALC] subtotal=${subtotal}, discount=${discountAmount}, taxable=${taxable}`);
-            const gst     = calcGSTAmounts(taxable);
-            const total   = parseFloat((taxable + gst.total).toFixed(2));
-            console.log(`[MODAL TOTAL] taxable=${taxable} + GST=${gst.total} = TOTAL=${total}`);
+            // Initialize modal discount from cart discount if needed
+            const cartDiscountPercent = parseFloat(document.getElementById('discountPercent').value) || 0;
+            if (cartDiscountPercent > 0 && !document.getElementById('modalDiscountValue').value) {
+                document.getElementById('modalDiscountValue').value = cartDiscountPercent;
+                modalDiscountType = 'percentage';
+                setDiscountType('percentage');
+            }
 
-            document.getElementById('modalTotal').textContent = total.toFixed(1);
+            // Update modal totals with discount
+            updateModalTotals();
             
             // Update amount paid field's change listener to recalculate with fresh rates
             const amountPaidField = document.getElementById('amountPaid');
@@ -827,6 +1065,24 @@
             }
 
             // Show GST breakdown inside modal if applicable
+            let subtotal = 0;
+            Object.values(cart).forEach(item => { subtotal += item.price * item.quantity; });
+            
+            // Get discount from modal
+            const modalDiscountInput = document.getElementById('modalDiscountValue');
+            let discountAmount = 0;
+            if (modalDiscountInput) {
+                const discountValue = parseFloat(modalDiscountInput.value) || 0;
+                if (modalDiscountType === 'percentage') {
+                    discountAmount = (subtotal * discountValue) / 100;
+                } else {
+                    discountAmount = discountValue;
+                }
+            }
+            
+            const taxable = subtotal - discountAmount;
+            const gst = calcGSTAmounts(taxable);
+
             let gstInfoEl = document.getElementById('modalGSTInfo');
             if (!gstInfoEl) {
                 gstInfoEl = document.createElement('div');
@@ -851,6 +1107,119 @@
 
         function closePrintModal() {
             document.getElementById('printModal').classList.remove('active');
+        }
+
+        // Cake weight modal functions
+        let currentCakeProduct = null;
+
+        function openCakeWeightModal(element, id, name, stock, unit, halfKgPrice, oneKgPrice) {
+            console.log(`📝 Opening cake modal for: ${name}`, { halfKgPrice, oneKgPrice });
+            
+            // Store the product element and details
+            currentCakeProduct = {
+                element: element,
+                id: id,
+                name: name,
+                stock: stock,
+                unit: unit,
+                halfKgPrice: halfKgPrice,
+                oneKgPrice: oneKgPrice
+            };
+
+            // Update modal content
+            document.getElementById('cakeProductName').textContent = name;
+            document.getElementById('halfKgPriceDisplay').textContent = halfKgPrice.toFixed(2);
+            document.getElementById('fullKgPriceDisplay').textContent = oneKgPrice.toFixed(2);
+
+            // Show/hide options based on available prices
+            const halfKgOption = document.getElementById('halfKgOption');
+            const fullKgOption = document.getElementById('fullKgOption');
+            
+            if (halfKgPrice > 0) {
+                halfKgOption.style.display = 'block';
+            } else {
+                halfKgOption.style.display = 'none';
+            }
+
+            if (oneKgPrice > 0) {
+                fullKgOption.style.display = 'block';
+            } else {
+                fullKgOption.style.display = 'none';
+            }
+
+            // Show modal
+            document.getElementById('cakeWeightModal').classList.add('active');
+        }
+
+        function closeCakeWeightModal() {
+            document.getElementById('cakeWeightModal').classList.remove('active');
+            currentCakeProduct = null;
+        }
+
+        // Close modal when clicking outside
+        document.getElementById('cakeWeightModal')?.addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeCakeWeightModal();
+            }
+        });
+
+        function selectCakeWeight(weightType) {
+            if (!currentCakeProduct) {
+                console.error('No cake product selected');
+                return;
+            }
+
+            const { element, id, name, stock, unit } = currentCakeProduct;
+            let totalPrice, price, quantity, weightLabel;
+
+            if (weightType === 'half') {
+                totalPrice = parseFloat(currentCakeProduct.halfKgPrice) || 0;
+                quantity = 0.5;
+                weightLabel = '½kg';
+                // Calculate per-kg rate: if half kg costs ₹200, then ₹200/0.5 = ₹400 per kg
+                price = totalPrice / quantity;
+            } else {
+                totalPrice = parseFloat(currentCakeProduct.oneKgPrice) || 0;
+                quantity = 1;
+                weightLabel = '1kg';
+                // Calculate per-kg rate: if one kg costs ₹400, then ₹400/1 = ₹400 per kg
+                price = totalPrice / quantity;
+            }
+
+            // Validate price
+            if (totalPrice <= 0 || price <= 0) {
+                alert(`Price not set for ${weightLabel}. Please update product pricing.`);
+                console.error(`Invalid price for ${name} (${weightLabel}):`, totalPrice);
+                return;
+            }
+
+            console.log(`🎂 Adding ${name} - ${weightLabel} @ ₹${price.toFixed(2)}/kg × ${quantity}kg = ₹${totalPrice.toFixed(2)} total`);
+
+            // Add to cart or update existing
+            if (!cart[id]) {
+                cart[id] = {
+                    id: id,
+                    name: `${name} (${weightLabel})`,
+                    price: price,
+                    quantity: quantity,
+                    stock: stock,
+                    unit: 'kg',
+                    isCake: true,
+                    baseWeight: quantity
+                };
+                updateProductCardDisplay(element, cart[id]);
+                console.log(`✅ Added to cart:`, cart[id], `Total: ₹${(price * quantity).toFixed(2)}`);
+            } else {
+                // If already in cart, add another unit of the selected weight
+                cart[id].quantity += quantity;
+                const displayQty = cart[id].quantity.toFixed(1);
+                element.querySelector('.qty-display').textContent = displayQty;
+                const newTotal = cart[id].price * cart[id].quantity;
+                console.log(`✅ Updated quantity to ${cart[id].quantity} kg, Total: ₹${newTotal.toFixed(2)}`);
+            }
+
+            updateTotals();
+            closeCakeWeightModal();
         }
 
         // Billing type tabs
@@ -970,6 +1339,8 @@
             const items = Object.values(cart).map(item => ({
                 productId: item.id,
                 quantity: item.quantity,
+                price: item.price,
+                isCake: item.isCake || false,
                 discount: 0,
                 discountType: 'fixed'
             }));
@@ -979,21 +1350,30 @@
             // Get customer details based on billing type
             let customerName = '';
             let customerPhone = '';
+            let customerAddress = '';
             
             if (billingType === 'advance') {
                 customerName = formData.get('customerNameAdvance') || '';
                 customerPhone = formData.get('customerPhoneAdvance') || '';
+                customerAddress = formData.get('customerAddressAdvance') || '';
             } else {
                 customerName = formData.get('customerName') || '';
                 customerPhone = formData.get('customerPhone') || '';
+                customerAddress = formData.get('customerAddress') || '';
             }
+
+            // Get discount values from modal
+            const modalDiscountInput = document.getElementById('modalDiscountValue');
+            const discountValue = modalDiscountInput ? (parseFloat(modalDiscountInput.value) || 0) : 0;
+            const discountTypeValue = document.getElementById('billDiscountType').value || 'percentage';
 
             const billData = {
                 items: JSON.stringify(items),
-                discount: document.getElementById('discountPercent').value,
-                discountType: 'percentage',
+                discount: discountValue,
+                discountType: discountTypeValue,
                 customerName: customerName,
                 customerPhone: customerPhone,
+                customerAddress: customerAddress,
                 paymentMethod: formData.get('paymentMethod') || 'cash',
                 amountPaid: formData.get('amountPaid') || '',
                 customerType: billingType === 'advance' ? (formData.get('invoiceType') || 'B2C') : 'B2C',
@@ -1138,6 +1518,115 @@
                     adminMenuDropdown.classList.remove('show');
                 }
             });
+        }
+
+        // Modal Discount Type Management
+        let modalDiscountType = 'percentage'; // 'percentage' or 'fixed'
+
+        function setDiscountType(type) {
+            modalDiscountType = type;
+            const percentBtn = document.getElementById('discountPercentBtn');
+            const rsBtn = document.getElementById('discountRsBtn');
+            const displayType = document.getElementById('discountDisplayType');
+            const helpText = document.getElementById('discountHelp');
+            const discountInput = document.getElementById('modalDiscountValue');
+
+            if (type === 'percentage') {
+                percentBtn.style.cssText = 'flex: 1; background: #6366f1; color: white; border: 2px solid #6366f1;';
+                rsBtn.style.cssText = 'flex: 1; border: 2px solid #ddd; background: white; color: #333;';
+                displayType.textContent = '%';
+                helpText.textContent = 'Enter percentage (0-100%)';
+                discountInput.max = '100';
+                discountInput.placeholder = 'Enter discount percentage';
+            } else {
+                percentBtn.style.cssText = 'flex: 1; border: 2px solid #ddd; background: white; color: #333;';
+                rsBtn.style.cssText = 'flex: 1; background: #6366f1; color: white; border: 2px solid #6366f1;';
+                displayType.textContent = '₹';
+                helpText.textContent = 'Enter amount in rupees';
+                discountInput.max = '999999';
+                discountInput.placeholder = 'Enter discount amount';
+            }
+
+            // Reset discount value when switching
+            discountInput.value = '0';
+            updateModalTotals();
+        }
+
+        function updateModalTotals() {
+            const discountInput = document.getElementById('modalDiscountValue');
+            const discountDisplayDiv = document.getElementById('modalDiscountDisplay');
+            const discountLabel = document.getElementById('modalDiscountLabel');
+            const discountAmountSpan = document.getElementById('modalDiscountAmount');
+            const modalSubtotalSpan = document.getElementById('modalSubtotal');
+            const modalTotalSpan = document.getElementById('modalTotal');
+            const helpText = document.getElementById('discountHelp');
+
+            // Calculate subtotal
+            let subtotal = 0;
+            Object.values(cart).forEach(item => { subtotal += item.price * item.quantity; });
+
+            // Get discount value
+            let discountValue = parseFloat(discountInput.value) || 0;
+            let discountAmount = 0;
+
+            // Validation and calculation based on type
+            if (modalDiscountType === 'percentage') {
+                if (discountValue > 100) {
+                    discountValue = 100;
+                    discountInput.value = 100;
+                    helpText.textContent = '⚠️ Maximum 100% discount';
+                    helpText.style.color = '#f59e0b';
+                    setTimeout(() => {
+                        helpText.textContent = 'Enter percentage (0-100%)';
+                        helpText.style.color = '#6c757d';
+                    }, 2000);
+                } else if (discountValue < 0) {
+                    discountValue = 0;
+                    discountInput.value = 0;
+                }
+                discountAmount = (subtotal * discountValue) / 100;
+                discountLabel.textContent = discountValue + '%';
+            } else {
+                if (discountValue > subtotal) {
+                    discountValue = subtotal;
+                    discountInput.value = subtotal.toFixed(2);
+                    helpText.textContent = '⚠️ Discount cannot exceed subtotal';
+                    helpText.style.color = '#f59e0b';
+                    setTimeout(() => {
+                        helpText.textContent = 'Enter amount in rupees';
+                        helpText.style.color = '#6c757d';
+                    }, 2000);
+                } else if (discountValue < 0) {
+                    discountValue = 0;
+                    discountInput.value = 0;
+                }
+                discountAmount = discountValue;
+                discountLabel.textContent = '₹' + discountValue.toFixed(2);
+            }
+
+            // Display or hide discount section
+            if (discountAmount > 0) {
+                discountDisplayDiv.style.display = 'block';
+                discountAmountSpan.textContent = discountAmount.toFixed(2);
+            } else {
+                discountDisplayDiv.style.display = 'none';
+            }
+
+            // Calculate taxable and GST
+            const taxable = subtotal - discountAmount;
+            const gst = calcGSTAmounts(taxable);
+            const total = parseFloat((taxable + gst.total).toFixed(2));
+
+            // Update display
+            modalSubtotalSpan.textContent = subtotal.toFixed(2);
+            modalTotalSpan.textContent = total.toFixed(2);
+
+            // Update hidden fields for form submission
+            document.getElementById('billDiscount').value = discountValue;
+            document.getElementById('billDiscountType').value = modalDiscountType;
+
+            // Recalculate due if amount paid is entered
+            calculateDue();
         }
     </script>
 </body>
