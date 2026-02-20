@@ -23,6 +23,43 @@
         /* Prevent loading spinner if resources fail */
         body { opacity: 1 !important; }
         .loading { display: none !important; }
+
+        /* Branch Filter Responsive Styles */
+        @media (max-width: 768px) {
+            .branch-filter-bar {
+                gap: 8px !important;
+                padding: 8px !important;
+            }
+            .branch-filter-bar > div {
+                min-width: 200px !important;
+            }
+            .branch-filter-bar select {
+                font-size: 12px !important;
+                padding: 4px 8px !important;
+            }
+            .branch-filter-bar > span {
+                font-size: 11px !important;
+                flex-basis: 100%;
+                text-align: center;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .branch-filter-bar {
+                flex-direction: column;
+                align-items: stretch !important;
+            }
+            .branch-filter-bar > div {
+                min-width: 100% !important;
+            }
+            .branch-filter-bar select {
+                max-width: 100% !important;
+            }
+            .branch-filter-bar > span {
+                text-align: left;
+                padding-left: 4px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -127,6 +164,43 @@
 
             <!-- Products Area -->
             <div class="products-area">
+                <% if (typeof user !== 'undefined' && user && user.role === 'admin') { %>
+                <div class="branch-filter-bar" style="display:flex; flex-wrap:wrap; align-items:center; gap:10px; padding:8px 12px; background:#f0f0ff; border-bottom:1px solid #d0d0f0;">
+                    <div style="display:flex; align-items:center; gap:10px; flex:1; min-width:250px;">
+                        <i class="bi bi-funnel-fill" style="color:#6366f1; font-size:16px;"></i>
+                        <span style="font-weight:600; font-size:13px; color:#374151; white-space:nowrap;">Branch:</span>
+                        <select id="branchFilter"
+                            onchange="window.location.href='/sales/new?employee='+this.value"
+                            style="flex:1; min-width:180px; max-width:280px; padding:5px 10px; border-radius:8px; border:1.5px solid #6366f1; font-size:13px; font-weight:600; color:#374151; background:#fff; cursor:pointer;">
+                            <option value="self" <%= (typeof selectedEmployeeId !== 'undefined' && selectedEmployeeId === 'self') ? 'selected' : '' %>>
+                                &#128100; My Products
+                            </option>
+                            <option value="all" <%= (typeof selectedEmployeeId !== 'undefined' && selectedEmployeeId === 'all') ? 'selected' : '' %>>
+                                &#127978; All Products (Every Branch)
+                            </option>
+                            <% if (typeof employees !== 'undefined' && employees.length > 0) { %>
+                                <optgroup label="── Employees ──">
+                                <% employees.forEach(function(emp) { %>
+                                    <option value="<%= emp._id %>" <%= (typeof selectedEmployeeId !== 'undefined' && selectedEmployeeId === emp._id.toString()) ? 'selected' : '' %>>
+                                        &#128101; <%= emp.fullName || emp.username %> &mdash; <%= emp.branch || 'Main Branch' %>
+                                    </option>
+                                <% }); %>
+                                </optgroup>
+                            <% } %>
+                        </select>
+                    </div>
+                    <span style="font-size:12px; color:#6b7280; white-space:nowrap;">
+                        <strong style="color:#6366f1;"><%= products.length %></strong> products
+                        <% if (typeof selectedEmployeeId !== 'undefined' && selectedEmployeeId !== 'self' && selectedEmployeeId !== 'all' && typeof employees !== 'undefined') { %>
+                            &nbsp;&bull;&nbsp;
+                            <% const selEmp = employees.find(e => e._id.toString() === selectedEmployeeId); %>
+                            <%= selEmp ? (selEmp.fullName || selEmp.username) : '' %>
+                        <% } else if (typeof selectedEmployeeId !== 'undefined' && selectedEmployeeId === 'all') { %>
+                            &nbsp;&bull;&nbsp;All branches
+                        <% } %>
+                    </span>
+                </div>
+                <% } %>
                 <div class="search-bar">
                     <input type="text" class="search-input" id="productSearch" placeholder="Search item...">
                 </div>
@@ -576,48 +650,96 @@
             updateTotals();
         }
 
+        // ── GST settings (from server) ──────────────────────────────
+        let GST_ENABLED  = <%- JSON.stringify(typeof gstSettings !== 'undefined' ? gstSettings.enableGST : false) %>;
+        let GST_CGST     = <%- JSON.stringify(typeof gstSettings !== 'undefined' ? gstSettings.defaultCGSTRate : 0) %>;
+        let GST_SGST     = <%- JSON.stringify(typeof gstSettings !== 'undefined' ? gstSettings.defaultSGSTRate : 0) %>;
+        let GST_IGST     = <%- JSON.stringify(typeof gstSettings !== 'undefined' ? gstSettings.defaultIGSTRate : 0) %>;
+        // ─────────────────────────────────────────────────────────────
+
+        // Fetch latest GST rates from server before calculations
+        async function refreshGSTRates() {
+            try {
+                console.log('🔄 Fetching latest GST rates from server...');
+                const response = await fetch('/sales/api/gst-rates');
+                const data = await response.json();
+                console.log('📊 Server response:', data);
+                if (data.success) {
+                    GST_ENABLED = data.enableGST;
+                    GST_CGST = data.defaultCGSTRate;
+                    GST_SGST = data.defaultSGSTRate;
+                    GST_IGST = data.defaultIGSTRate;
+                    console.log('✅ GST rates updated: CGST=' + GST_CGST + '%, SGST=' + GST_SGST + '%, IGST=' + GST_IGST + '%, Enabled=' + GST_ENABLED);
+                    return true;
+                } else {
+                    console.error('❌ Failed to fetch GST rates:', data);
+                }
+            } catch (error) {
+                console.error('⚠️ Error fetching GST rates:', error);
+            }
+            return false;
+        }
+
+        // Returns { cgst, sgst, igst, total } for a given taxable amount
+        function calcGSTAmounts(taxable) {
+            const invoiceType = document.getElementById('invoiceType');
+            const activeTab = document.querySelector('.billing-type-tab.active');
+            const isAdvance = activeTab && activeTab.dataset.type === 'advance';
+            // GST applies ONLY when ADVANCE tab is active AND invoice type is B2B
+            const isB2B = isAdvance && invoiceType && invoiceType.value === 'B2B';
+            if (!GST_ENABLED || !isB2B) return { cgst: 0, sgst: 0, igst: 0, total: 0 };
+            
+            // For now, assume intra-state (CGST + SGST), not inter-state (IGST)
+            // Backend will handle inter-state logic based on GSTINs
+            const cgst  = parseFloat(((taxable * GST_CGST) / 100).toFixed(2));
+            const sgst  = parseFloat(((taxable * GST_SGST) / 100).toFixed(2));
+            const igst  = 0; // Frontend doesn't determine inter-state, backend does
+            const gstTotal = cgst + sgst; // Only CGST + SGST for display
+            
+            console.log(`[FRONTEND GST] taxable=${taxable}, CGST=${GST_CGST}% = ₹${cgst}, SGST=${GST_SGST}% = ₹${sgst}, Total GST=${gstTotal}`);
+            return { cgst, sgst, igst, total: gstTotal };
+        }
+
         function updateTotals() {
             let subtotal = 0;
-            Object.values(cart).forEach(item => {
-                subtotal += item.price * item.quantity;
-            });
+            Object.values(cart).forEach(item => { subtotal += item.price * item.quantity; });
 
             const discountPercent = parseFloat(document.getElementById('discountPercent').value) || 0;
-            const discountAmount = (subtotal * discountPercent) / 100;
-            const total = subtotal - discountAmount;
+            const discountAmount  = (subtotal * discountPercent) / 100;
+            const taxable = subtotal - discountAmount;
+            console.log(`📊 [updateTotals] subtotal=${subtotal}, taxable=${taxable}, Using GST rates: CGST=${GST_CGST}%, SGST=${GST_SGST}%`);
+            const gst     = calcGSTAmounts(taxable);
+            const total   = parseFloat((taxable + gst.total).toFixed(2));
+            console.log(`📊 [updateTotals] GST=${gst.total}, FINAL TOTAL=${total}`);
 
             document.getElementById('header-total').textContent = total.toFixed(1);
             document.getElementById(`table${currentTable}-total`).textContent = total.toFixed(1);
-            
-            // Update modal total if modal is open
+
             if (document.getElementById('modalTotal')) {
                 document.getElementById('modalTotal').textContent = total.toFixed(1);
             }
-            
-            // Calculate due if amount paid is entered
             calculateDue();
         }
 
         function calculateDue() {
             const amountPaidInput = document.getElementById('amountPaid');
             const dueDisplay = document.getElementById('dueDisplay');
-            const dueAmount = document.getElementById('dueAmount');
-            
+            const dueAmount  = document.getElementById('dueAmount');
             if (!amountPaidInput || !dueDisplay) return;
-            
+
             const amountPaid = parseFloat(amountPaidInput.value) || 0;
-            
-            // Calculate current total
+
             let subtotal = 0;
-            Object.values(cart).forEach(item => {
-                subtotal += item.price * item.quantity;
-            });
+            Object.values(cart).forEach(item => { subtotal += item.price * item.quantity; });
             const discountPercent = parseFloat(document.getElementById('discountPercent').value) || 0;
-            const discountAmount = (subtotal * discountPercent) / 100;
-            const total = subtotal - discountAmount;
-            
-            const due = Math.max(0, total - amountPaid);
-            
+            const discountAmount  = (subtotal * discountPercent) / 100;
+            const taxable = subtotal - discountAmount;
+            const gst     = calcGSTAmounts(taxable);
+            // Use same rounding as backend to avoid mismatch
+            const total   = parseFloat((taxable + gst.total).toFixed(2));
+
+            const due = Math.max(0, parseFloat((total - amountPaid).toFixed(2)));
+            console.log(`[calculateDue] amountPaid=${amountPaid}, total=${total}, due=${due}`);
             if (amountPaid > 0 && amountPaid < total) {
                 dueDisplay.style.display = 'block';
                 dueAmount.textContent = due.toFixed(1);
@@ -648,11 +770,24 @@
         }
 
         // Print modal
-        function openPrintModal() {
+        async function openPrintModal() {
             if (Object.keys(cart).length === 0) {
                 alert('Please add items to cart first!');
                 return;
             }
+
+            // CRITICAL: Refresh GST rates FIRST before any calculation
+            console.log('🔄 [MODAL] Starting GST rate refresh...');
+            await refreshGSTRates();
+            console.log(`✅ [MODAL] GST rates after refresh: CGST=${GST_CGST}%, SGST=${GST_SGST}%, Enabled=${GST_ENABLED}`);
+            
+            // Wait a tiny moment to ensure rates are set
+            await new Promise(resolve => setTimeout(resolve, 50));
+            
+            // Now update all totals with fresh rates
+            updateTotals();
+            
+            console.log(`📊 [AFTER UPDATE] Header shows: ${document.getElementById('header-total').textContent}`);
 
             // Update modal cart items
             let cartHTML = '';
@@ -667,15 +802,49 @@
             });
             document.getElementById('modalCartItems').innerHTML = cartHTML;
 
-            // Update total
+            // Calculate totals with refreshed GST rates
             let subtotal = 0;
-            Object.values(cart).forEach(item => {
-                subtotal += item.price * item.quantity;
-            });
+            Object.values(cart).forEach(item => { subtotal += item.price * item.quantity; });
             const discountPercent = parseFloat(document.getElementById('discountPercent').value) || 0;
-            const discountAmount = (subtotal * discountPercent) / 100;
-            const total = subtotal - discountAmount;
+            const discountAmount  = (subtotal * discountPercent) / 100;
+            const taxable = subtotal - discountAmount;
+            console.log(`[MODAL CALC] subtotal=${subtotal}, discount=${discountAmount}, taxable=${taxable}`);
+            const gst     = calcGSTAmounts(taxable);
+            const total   = parseFloat((taxable + gst.total).toFixed(2));
+            console.log(`[MODAL TOTAL] taxable=${taxable} + GST=${gst.total} = TOTAL=${total}`);
+
             document.getElementById('modalTotal').textContent = total.toFixed(1);
+            
+            // Update amount paid field's change listener to recalculate with fresh rates
+            const amountPaidField = document.getElementById('amountPaid');
+            if (amountPaidField) {
+                // Remove old listeners and add new one
+                amountPaidField.onchange = function() {
+                    calculateDue();
+                };
+                // Trigger initial calculation
+                calculateDue();
+            }
+
+            // Show GST breakdown inside modal if applicable
+            let gstInfoEl = document.getElementById('modalGSTInfo');
+            if (!gstInfoEl) {
+                gstInfoEl = document.createElement('div');
+                gstInfoEl.id = 'modalGSTInfo';
+                gstInfoEl.style.cssText = 'font-size:12px;color:#555;margin-top:4px;';
+                const cartTotalEl = document.querySelector('.cart-total');
+                if (cartTotalEl) cartTotalEl.insertAdjacentElement('afterend', gstInfoEl);
+            }
+            if (gst.total > 0) {
+                let gstHTML = `<div style="border-top:1px solid #eee;padding-top:4px;margin-top:4px;">`;
+                if (gst.cgst > 0) gstHTML += `<div style="display:flex;justify-content:space-between;"><span>CGST (${GST_CGST}%)</span><span>₹${gst.cgst.toFixed(2)}</span></div>`;
+                if (gst.sgst > 0) gstHTML += `<div style="display:flex;justify-content:space-between;"><span>SGST (${GST_SGST}%)</span><span>₹${gst.sgst.toFixed(2)}</span></div>`;
+                if (gst.igst > 0) gstHTML += `<div style="display:flex;justify-content:space-between;"><span>IGST (${GST_IGST}%)</span><span>₹${gst.igst.toFixed(2)}</span></div>`;
+                gstHTML += `<div style="display:flex;justify-content:space-between;font-weight:600;color:#10b981;"><span>GST Total</span><span>₹${gst.total.toFixed(2)}</span></div></div>`;
+                gstInfoEl.innerHTML = gstHTML;
+            } else {
+                gstInfoEl.innerHTML = '';
+            }
 
             document.getElementById('printModal').classList.add('active');
         }
@@ -686,7 +855,7 @@
 
         // Billing type tabs
         document.querySelectorAll('.billing-type-tab').forEach(tab => {
-            tab.addEventListener('click', function() {
+            tab.addEventListener('click', async function() {
                 document.querySelectorAll('.billing-type-tab').forEach(t => {
                     t.classList.remove('active');
                     t.innerHTML = t.innerHTML.replace('bi-circle-fill', 'bi-circle');
@@ -700,16 +869,37 @@
                 const basicFields = document.getElementById('basicFields');
                 
                 if (billingType === 'advance') {
-                    // Show B2B/Advanced fields, hide basic fields
                     advanceFields.style.display = 'block';
                     basicFields.style.display = 'none';
                 } else {
-                    // Show basic fields, hide B2B/Advanced fields
                     advanceFields.style.display = 'none';
                     basicFields.style.display = 'block';
                 }
+                
+                // Refresh GST rates when switching to ADVANCE mode
+                if (billingType === 'advance') {
+                    console.log('🔄 Switching to ADVANCE mode - refreshing GST rates...');
+                    await refreshGSTRates();
+                }
+                
+                // Refresh GST-inclusive totals when switching billing mode
+                updateTotals();
             });
         });
+
+        // Refresh totals when invoice type (B2B/B2C) or GSTIN changes
+        const invoiceTypeEl = document.getElementById('invoiceType');
+        const customerGSTINEl = document.getElementById('customerGSTIN');
+        if (invoiceTypeEl) {
+            invoiceTypeEl.addEventListener('change', async function() {
+                console.log('🔄 Invoice type changed to: ' + this.value);
+                if (this.value === 'B2B') {
+                    await refreshGSTRates();
+                }
+                updateTotals();
+            });
+        }
+        if (customerGSTINEl) customerGSTINEl.addEventListener('input', updateTotals);
 
         // Payment buttons
         document.querySelectorAll('.payment-btn').forEach(btn => {
@@ -721,7 +911,7 @@
         });
 
         // Submit bill
-        function submitBill(event) {
+        async function submitBill(event) {
             event.preventDefault();
             
             console.log('Submit bill function called');
@@ -829,6 +1019,10 @@
             submitBtn.disabled = true;
             
             console.log('Sending request to /sales/create...');
+            console.log('Bill data being sent:', billData);
+            
+            // Refresh GST rates one more time before submission to ensure sync
+            await refreshGSTRates();
 
             // Submit to server
             fetch('/sales/create', {
@@ -895,7 +1089,7 @@
                     document.getElementById('advanceFields').style.display = 'none';
                     document.getElementById('basicFields').style.display = 'block';
                 } else {
-                    alert('Error: ' + (data.message || 'Failed to create bill'));
+                    alert('Error: ' + (data.error || data.message || 'Failed to create bill'));
                 }
             })
             .catch(error => {

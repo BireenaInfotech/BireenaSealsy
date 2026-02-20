@@ -764,6 +764,7 @@ body {
     height: 100%;
     background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 50%);
     border-radius: 20px 20px 0 0;
+    pointer-events: none;
 }
 
 /* Dashboard Stat Cards */

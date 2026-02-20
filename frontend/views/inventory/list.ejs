@@ -85,9 +85,15 @@
             <a href="/inventory/transfer" class="btn btn-outline-secondary btn-sm">
                 <i class="bi bi-arrow-left-right"></i> STOCK TRANSFER (ADMIN ONLY)
             </a>
+            <% if (typeof user !== 'undefined' && user && user.role === 'admin') { %>
             <a href="/inventory/supplier-reports" class="btn btn-outline-info btn-sm">
                 <i class="bi bi-truck"></i> SUPPLIER REPORTS
             </a>
+            <% } else { %>
+            <a href="/inventory/supplier-reports" class="btn btn-outline-info btn-sm">
+                <i class="bi bi-truck"></i> MY SUPPLIER REPORTS
+            </a>
+            <% } %>
         </div>
 
         <!-- 🎯 Filters -->

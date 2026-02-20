@@ -19,7 +19,7 @@ router.get('/', isAuthenticated, async (req, res) => {
                 $group: {
                     _id: '$customerPhone',
                     name: { $first: '$customerName' },
-                    lastPurchase: { $max: '$saleDate' },
+                    lastPurchase: { $max: '$createdAt' },
                     totalPurchases: { $sum: 1 }
                 }
             },
@@ -45,7 +45,7 @@ router.get('/add', isAuthenticated, isAdmin, async (req, res) => {
                 $group: {
                     _id: '$customerPhone',
                     name: { $first: '$customerName' },
-                    lastPurchase: { $max: '$saleDate' },
+                    lastPurchase: { $max: '$createdAt' },
                     totalPurchases: { $sum: 1 }
                 }
             },

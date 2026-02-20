@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -16,12 +16,21 @@
             <div class="col-md-10">
                 <div class="card">
                     <div class="card-header bg-success text-white">
-                        <h4 class="mb-0"><i class="bi bi-plus-circle"></i> Add New Product</h4>
+                        <div class="d-flex align-items-center" style="width:100%;">
+                            <h4 class="mb-0"><i class="bi bi-plus-circle"></i> Add New Product</h4>
+                            <div class="d-flex align-items-center ms-auto" style="gap: 10px;">
+                                <span style="font-size: 14px; white-space: nowrap;"><i class="bi bi-stack"></i> Bulk Add Mode</span>
+                                <div class="form-check form-switch m-0">
+                                    <input class="form-check-input" type="checkbox" id="bulkModeToggle" style="width: 50px; height: 25px; cursor: pointer; margin: 0;" onclick="toggleBulkMode(this.checked)">
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     <div class="card-body">
-                        <form action="/inventory/add" method="POST">
+                        <!-- SINGLE PRODUCT FORM -->
+                        <form action="/inventory/add" method="POST" id="singleProductForm" onsubmit="return validateSingleForm()">
                             
-                            <!-- 📦 BASIC INFORMATION -->
+                            <!-- ðŸ“¦ BASIC INFORMATION -->
                             <div class="card mb-3">
                                 <div class="card-header bg-light">
                                     <h6 class="mb-0"><i class="bi bi-info-circle"></i> Basic Information</h6>
@@ -30,7 +39,7 @@
                                     <div class="row">
                                         <div class="col-md-6 mb-3">
                                             <label class="form-label">Product Name *</label>
-                                            <input type="text" class="form-control" name="name" required>
+                                            <input type="text" class="form-control" name="name" required minlength="2" maxlength="100" placeholder="Enter product name">
                                         </div>
                                         <div class="col-md-6 mb-3">
                                             <label class="form-label">Category *</label>
@@ -48,7 +57,7 @@
                                 </div>
                             </div>
 
-                            <!-- 💰 PRICING & PROFIT -->
+                            <!-- ðŸ’° PRICING & PROFIT -->
                             <div class="card mb-3">
                                 <div class="card-header bg-light">
                                     <h6 class="mb-0"><i class="bi bi-currency-rupee"></i> Pricing & Profit</h6>
@@ -56,19 +65,19 @@
                                 <div class="card-body">
                                     <div class="row">
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">Purchase Price (₹) *</label>
+                                            <label class="form-label">Purchase Price (&#8377;) *</label>
                                             <input type="number" class="form-control" name="purchasePrice" id="purchasePrice" step="0.01" min="0.01" required>
                                             <small class="text-muted">Cost per unit</small>
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">Selling Price (₹) *</label>
+                                            <label class="form-label">Selling Price (&#8377;) *</label>
                                             <input type="number" class="form-control" name="sellingPrice" id="sellingPrice" step="0.01" min="0.01" required>
                                             <small class="text-muted">Retail price</small>
                                         </div>
                                         <div class="col-md-4 mb-3">
                                             <label class="form-label">Profit Per Item</label>
                                             <div class="input-group">
-                                                <span class="input-group-text">₹</span>
+                                                <span class="input-group-text">&#8377;</span>
                                                 <input type="text" class="form-control" id="profitDisplay" readonly>
                                             </div>
                                             <small id="profitPercentage" class="text-success"></small>
@@ -79,7 +88,7 @@
                                 </div>
                             </div>
 
-                            <!-- 📊 STOCK DETAILS -->
+                            <!-- ðŸ“Š STOCK DETAILS -->
                             <div class="card mb-3">
                                 <div class="card-header bg-light">
                                     <h6 class="mb-0"><i class="bi bi-box-seam"></i> Stock Details</h6>
@@ -108,7 +117,7 @@
                                 </div>
                             </div>
 
-                            <!-- 📅 DATES & EXPIRY -->
+                            <!-- ðŸ“… DATES & EXPIRY -->
                             <div class="card mb-3">
                                 <div class="card-header bg-light">
                                     <h6 class="mb-0"><i class="bi bi-calendar"></i> Dates & Expiry Tracking</h6>
@@ -129,7 +138,7 @@
                                 </div>
                             </div>
 
-                            <!-- 🏢 SUPPLIER DETAILS -->
+                            <!-- ðŸ¢ SUPPLIER DETAILS -->
                             <div class="card mb-3">
                                 <div class="card-header bg-light">
                                     <h6 class="mb-0"><i class="bi bi-truck"></i> Supplier / Vendor Details</h6>
@@ -142,7 +151,7 @@
                                         </div>
                                         <div class="col-md-4 mb-3">
                                             <label class="form-label">Supplier Contact</label>
-                                            <input type="tel" class="form-control" name="supplierContact" id="supplierContact" maxlength="10" pattern="[0-9]{10}" title="Please enter exactly 10 digits">
+                                            <input type="tel" class="form-control" name="supplierContact" id="supplierContact" maxlength="10" pattern="[0-9]{10}" title="Please enter exactly 10 digits" placeholder="10 digits">
                                             <small class="text-muted">Optional (10 digits only)</small>
                                         </div>
                                         <div class="col-md-4 mb-3">
@@ -165,7 +174,7 @@
                                 </div>
                             </div>
 
-                            <!-- 💰 PAYMENT DETAILS -->
+                            <!-- ðŸ’° PAYMENT DETAILS -->
                             <div class="card mb-3">
                                 <div class="card-header bg-light">
                                     <h6 class="mb-0"><i class="bi bi-credit-card"></i> Payment Details for Supplier</h6>
@@ -173,17 +182,17 @@
                                 <div class="card-body">
                                     <div class="row">
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">Total Purchase Amount (₹)</label>
+                                            <label class="form-label">Total Purchase Amount (&#8377;)</label>
                                             <input type="number" class="form-control" name="totalPurchaseAmount" id="totalPurchaseAmount" min="0" step="0.01" placeholder="0.00">
                                             <small class="text-muted">Total amount to pay supplier</small>
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">Amount Paid Now (₹)</label>
+                                            <label class="form-label">Amount Paid Now (&#8377;)</label>
                                             <input type="number" class="form-control" name="amountPaid" id="amountPaid" min="0" step="0.01" placeholder="0.00">
                                             <small class="text-muted">Amount paying right now</small>
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">Amount Due (₹)</label>
+                                            <label class="form-label">Amount Due (&#8377;)</label>
                                             <input type="number" class="form-control bg-light" name="amountDue" id="amountDue" readonly placeholder="0.00">
                                             <small class="text-muted">Auto-calculated</small>
                                         </div>
@@ -215,7 +224,7 @@
                                 </div>
                             </div>
 
-                            <!-- 📝 ADDITIONAL DETAILS -->
+                            <!-- ðŸ“ ADDITIONAL DETAILS -->
                             <div class="card mb-3">
                                 <div class="card-header bg-light">
                                     <h6 class="mb-0"><i class="bi bi-tag"></i> Additional Details</h6>
@@ -257,6 +266,85 @@
                                 </button>
                             </div>
                         </form>
+
+                        <!-- BULK PRODUCT FORM -->
+                        <div id="bulkProductForm" style="display: none;">
+                            <div class="alert alert-info mb-3">
+                                <i class="bi bi-info-circle"></i> <strong>Bulk Add Mode:</strong> Fill supplier details once — they apply to all products below.
+                            </div>
+
+                            <!-- SHARED SUPPLIER + PAYMENT CARD -->
+                            <div class="card mb-4" style="border: 2px solid #6366f1;">
+                                <div class="card-header py-2" style="background: linear-gradient(135deg,#6366f1,#764ba2); color: white;">
+                                    <span style="font-weight:700;"><i class="bi bi-truck"></i> Supplier & Payment Details <small style="font-weight:400;opacity:0.85;">(shared for all products)</small></span>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row mb-2">
+                                        <div class="col-md-4 mb-2">
+                                            <label class="form-label fw-semibold">Supplier Name</label>
+                                            <input type="text" class="form-control" id="bulkSupplierName" placeholder="e.g. Ankit Wholesale">
+                                        </div>
+                                        <div class="col-md-4 mb-2">
+                                            <label class="form-label fw-semibold">Supplier Contact</label>
+                                            <input type="tel" class="form-control" id="bulkSupplierContact" maxlength="10" pattern="[0-9]{10}" title="Must be exactly 10 digits" placeholder="10 digits (optional)">
+                                            <small class="text-muted">10 digits only</small>
+                                        </div>
+                                        <div class="col-md-4 mb-2">
+                                            <label class="form-label fw-semibold">Payment Method</label>
+                                            <select class="form-select" id="bulkPaymentMethod">
+                                                <option value="none">No Payment Yet</option>
+                                                <option value="cash">Cash</option>
+                                                <option value="online">Online Transfer</option>
+                                                <option value="upi">UPI</option>
+                                                <option value="card">Card</option>
+                                                <option value="mixed">Mixed (Cash + Online)</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="row mb-2">
+                                        <div class="col-md-4 mb-2">
+                                            <label class="form-label fw-semibold">Total Purchase Amount (&#8377;)</label>
+                                            <input type="number" class="form-control" id="bulkTotalPurchase" min="0" step="0.01" placeholder="0.00" oninput="calcBulkPayment()">
+                                            <small class="text-muted">Total to pay supplier</small>
+                                        </div>
+                                        <div class="col-md-4 mb-2">
+                                            <label class="form-label fw-semibold">Amount Paid Now (&#8377;)</label>
+                                            <input type="number" class="form-control" id="bulkAmountPaid" min="0" step="0.01" placeholder="0.00" oninput="calcBulkPayment()">
+                                        </div>
+                                        <div class="col-md-4 mb-2">
+                                            <label class="form-label fw-semibold">Amount Due (&#8377;)</label>
+                                            <input type="number" class="form-control bg-light" id="bulkAmountDue" readonly placeholder="0.00">
+                                            <small id="bulkPaymentStatus" class="fw-bold text-muted">Not Specified</small>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-12">
+                                            <label class="form-label fw-semibold">Payment Notes</label>
+                                            <textarea class="form-control" id="bulkPaymentNotes" rows="2" placeholder="Optional notes..."></textarea>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- PRODUCT CARDS -->
+                            <div id="bulkProductTableBody">
+                                <!-- Product cards added dynamically -->
+                            </div>
+
+                            <div class="d-flex justify-content-between mt-3">
+                                <a href="/inventory" class="btn btn-secondary">
+                                    <i class="bi bi-arrow-left"></i> Cancel
+                                </a>
+                                <div>
+                                    <button type="button" class="btn btn-primary me-2" onclick="addBulkRow()">
+                                        <i class="bi bi-plus-circle"></i> Add Another Product
+                                    </button>
+                                    <button type="button" class="btn btn-success btn-lg" onclick="submitBulkProducts()">
+                                        <i class="bi bi-check-circle"></i> Add All Products (<span id="productCount">0</span>)
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -265,243 +353,549 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Image preview for both URL and file upload
-        const imageUrlInput = document.getElementById('imageUrl');
-        const imageFileInput = document.getElementById('imageFile');
-        const imagePreview = document.getElementById('imagePreview');
-        const previewImg = document.getElementById('previewImg');
+        // ============================================================
+        // TOGGLE FUNCTION - declared first so it's always available
+        // ============================================================
+        var bulkRowCounter = 0;
 
-        // URL input preview
-        imageUrlInput.addEventListener('input', function() {
-            const url = this.value.trim();
-            if (url) {
-                imageFileInput.value = ''; // Clear file input
-                previewImg.src = url;
-                imagePreview.style.display = 'block';
-                previewImg.onerror = function() {
-                    imagePreview.style.display = 'none';
-                };
+        function toggleBulkMode(isChecked) {
+            var sf = document.getElementById('singleProductForm');
+            var bf = document.getElementById('bulkProductForm');
+            if (!sf || !bf) { alert('Forms not found!'); return; }
+            if (isChecked) {
+                sf.style.display = 'none';
+                bf.style.display = 'block';
+                var tbody = document.getElementById('bulkProductTableBody');
+                if (tbody && tbody.children.length === 0) {
+                    addBulkRow();
+                }
             } else {
-                if (!imageFileInput.value) {
-                    imagePreview.style.display = 'none';
-                }
+                sf.style.display = 'block';
+                bf.style.display = 'none';
             }
-        });
-
-        // File input preview
-        imageFileInput.addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (file) {
-                // Check file size (5MB limit)
-                if (file.size > 5 * 1024 * 1024) {
-                    alert('Image size must be less than 5MB!');
-                    this.value = '';
-                    return;
-                }
-
-                // Check file type
-                if (!file.type.match('image.*')) {
-                    alert('Please select a valid image file!');
-                    this.value = '';
-                    return;
-                }
-
-                imageUrlInput.value = ''; // Clear URL input
-                
-                // Show preview
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    previewImg.src = e.target.result;
-                    imagePreview.style.display = 'block';
-                    // Store base64 in hidden URL field for now
-                    imageUrlInput.value = e.target.result;
-                };
-                reader.readAsDataURL(file);
-            } else {
-                if (!imageUrlInput.value) {
-                    imagePreview.style.display = 'none';
-                }
-            }
-        });
-
-        // Real-time profit calculation
-        const purchaseInput = document.getElementById('purchasePrice');
-        const sellingInput = document.getElementById('sellingPrice');
-        const profitDisplay = document.getElementById('profitDisplay');
-        const profitPercentage = document.getElementById('profitPercentage');
-        const priceHidden = document.getElementById('price');
-
-        function calculateProfit() {
-            const purchase = parseFloat(purchaseInput.value) || 0;
-            const selling = parseFloat(sellingInput.value) || 0;
-            const profit = selling - purchase;
-            const percentage = purchase > 0 ? ((profit / purchase) * 100).toFixed(1) : 0;
-
-            profitDisplay.value = profit.toFixed(2);
-            profitPercentage.textContent = `${percentage}% profit margin`;
-            
-            if (profit < 0) {
-                profitDisplay.style.backgroundColor = '#ffebee';
-                profitPercentage.style.color = 'red';
-                profitPercentage.textContent = `${percentage}% LOSS!`;
-            } else if (profit === 0) {
-                profitDisplay.style.backgroundColor = '#fff3e0';
-                profitPercentage.style.color = 'orange';
-            } else {
-                profitDisplay.style.backgroundColor = '#e8f5e9';
-                profitPercentage.style.color = 'green';
-            }
-
-            // Set hidden price field to selling price for backward compatibility
-            priceHidden.value = selling;
         }
 
-        purchaseInput.addEventListener('input', calculateProfit);
-        sellingInput.addEventListener('input', calculateProfit);
+        function addBulkRow() {
+            bulkRowCounter++;
+            var container = document.getElementById('bulkProductTableBody');
+            if (!container) return;
+            var n = bulkRowCounter;
+            var card = document.createElement('div');
+            card.id = 'bulkRow' + n;
+            card.className = 'card mb-3';
+            card.style.border = '2px solid #e0e7ff';
+            card.innerHTML =
+                '<div class="card-header d-flex justify-content-between align-items-center py-2" style="background:linear-gradient(135deg,#6366f1,#ec4899);color:white;">' +
+                    '<span style="font-weight:700;"><i class="bi bi-box-seam"></i> Product #' + n + '</span>' +
+                    '<button type="button" class="btn btn-sm btn-danger" onclick="removeBulkRow(' + n + ')"><i class="bi bi-trash"></i> Remove</button>' +
+                '</div>' +
+                '<div class="card-body">' +
 
-        // Prevent negative values in price inputs
-        purchaseInput.addEventListener('input', function() {
-            if (this.value < 0) this.value = 0;
-        });
-        
-        sellingInput.addEventListener('input', function() {
-            if (this.value < 0) this.value = 0;
-        });
+                    '<!-- Basic Info -->' +
+                    '<div class="row mb-2">' +
+                        '<div class="col-md-6 mb-2">' +
+                            '<label class="form-label fw-semibold">Product Name *</label>' +
+                            '<input type="text" class="form-control" data-field="name" placeholder="Enter product name" minlength="2" maxlength="100" required>' +
+                        '</div>' +
+                        '<div class="col-md-6 mb-2">' +
+                            '<label class="form-label fw-semibold">Category *</label>' +
+                            '<input type="text" class="form-control" data-field="category" list="categoryList" placeholder="e.g. Bread, Cake" required>' +
+                        '</div>' +
+                    '</div>' +
 
-        // Auto-calculate expiry date based on MFG date (optional)
-        const mfgInput = document.getElementById('mfgDate');
-        const expiryInput = document.getElementById('expiryDate');
-        
-        // Set min expiry date when manufacturing date is selected
-        mfgInput.addEventListener('change', function() {
-            if (this.value) {
-                // Set minimum expiry date to be after manufacturing date
-                expiryInput.min = this.value;
-                
-                // Auto-suggest expiry date if not set
-                if (!expiryInput.value) {
-                    const mfgDate = new Date(this.value);
-                    mfgDate.setDate(mfgDate.getDate() + 7); // Default 7 days shelf life
-                    expiryInput.value = mfgDate.toISOString().split('T')[0];
-                }
+                    '<!-- Pricing -->' +
+                    '<div class="row mb-2">' +
+                        '<div class="col-md-4 mb-2">' +
+                            '<label class="form-label fw-semibold">Purchase Price (&#8377;) *</label>' +
+                            '<input type="number" class="form-control" data-field="purchasePrice" step="0.01" min="0.01" placeholder="0.00" required>' +
+                        '</div>' +
+                        '<div class="col-md-4 mb-2">' +
+                            '<label class="form-label fw-semibold">Selling Price (&#8377;) *</label>' +
+                            '<input type="number" class="form-control" data-field="sellingPrice" step="0.01" min="0.01" placeholder="0.00" required>' +
+                        '</div>' +
+                        '<div class="col-md-4 mb-2">' +
+                            '<label class="form-label fw-semibold">Profit Per Item</label>' +
+                            '<div class="input-group">' +
+                                '<span class="input-group-text">&#8377;</span>' +
+                                '<input type="text" class="form-control" data-field="profitDisplay" readonly placeholder="Auto">' +
+                            '</div>' +
+                        '</div>' +
+                    '</div>' +
+
+                    '<!-- Stock -->' +
+                    '<div class="row mb-2">' +
+                        '<div class="col-md-4 mb-2">' +
+                            '<label class="form-label fw-semibold">Stock Qty *</label>' +
+                            '<input type="number" class="form-control" data-field="stock" min="0" value="0" required>' +
+                        '</div>' +
+                        '<div class="col-md-4 mb-2">' +
+                            '<label class="form-label fw-semibold">Unit *</label>' +
+                            '<select class="form-select" data-field="unit" required>' +
+                                '<option value="piece">Piece</option>' +
+                                '<option value="kg">Kilogram (kg)</option>' +
+                                '<option value="dozen">Dozen</option>' +
+                                '<option value="box">Box</option>' +
+                            '</select>' +
+                        '</div>' +
+                        '<div class="col-md-4 mb-2">' +
+                            '<label class="form-label fw-semibold">Batch Number</label>' +
+                            '<input type="text" class="form-control" data-field="batchNumber" placeholder="Optional">' +
+                        '</div>' +
+                    '</div>' +
+
+                    '<!-- Dates -->' +
+                    '<div class="row mb-2">' +
+                        '<div class="col-md-6 mb-2">' +
+                            '<label class="form-label fw-semibold">Manufacturing Date</label>' +
+                            '<input type="date" class="form-control" data-field="mfgDate">' +
+                        '</div>' +
+                        '<div class="col-md-6 mb-2">' +
+                            '<label class="form-label fw-semibold">Expiry Date</label>' +
+                            '<input type="date" class="form-control" data-field="expiryDate">' +
+                        '</div>' +
+                    '</div>' +
+
+                    '<!-- Supplier -->' +
+                    '<div class="row mb-2">' +
+                        '<div class="col-12">' +
+                            '<small class="text-muted"><i class="bi bi-info-circle"></i> Supplier details are shared — fill them in the Supplier card above.</small>' +
+                        '</div>' +
+                    '</div>' +
+
+                    '<!-- Image -->' +
+                    '<div class="row">' +
+                        '<div class="col-12">' +
+                            '<label class="form-label fw-semibold">Product Image URL</label>' +
+                            '<input type="text" class="form-control" data-field="image" placeholder="https://example.com/image.jpg (optional)">' +
+                        '</div>' +
+                    '</div>' +
+
+                '</div>';
+
+            // Auto profit calc for this card
+            card.querySelector('[data-field="purchasePrice"]').addEventListener('input', function() { calcBulkProfit(card); });
+            card.querySelector('[data-field="sellingPrice"]').addEventListener('input', function() { calcBulkProfit(card); });
+
+            container.appendChild(card);
+            updateProductCount();
+        }
+
+        function calcBulkProfit(card) {
+            var pp = parseFloat(card.querySelector('[data-field="purchasePrice"]').value) || 0;
+            var sp = parseFloat(card.querySelector('[data-field="sellingPrice"]').value) || 0;
+            var pd = card.querySelector('[data-field="profitDisplay"]');
+            if (pd) {
+                pd.value = (sp - pp).toFixed(2);
+                pd.style.color = (sp - pp) < 0 ? 'red' : 'green';
             }
-        });
-        
-        // Validate expiry date is after manufacturing date
-        expiryInput.addEventListener('change', function() {
-            const mfgDate = mfgInput.value;
-            const expDate = this.value;
-            
-            if (mfgDate && expDate && new Date(expDate) <= new Date(mfgDate)) {
-                alert('Expiry date must be after Manufacturing date!');
-                this.value = '';
-            }
-        });
-        
-        // Supplier contact validation
-        const supplierContactInput = document.getElementById('supplierContact');
-        if (supplierContactInput) {
-            supplierContactInput.addEventListener('input', function() {
-                // Remove non-numeric characters
-                this.value = this.value.replace(/[^0-9]/g, '');
-                
-                // Limit to 10 digits
-                if (this.value.length > 10) {
-                    this.value = this.value.slice(0, 10);
-                }
+        }
+
+        function removeBulkRow(rowId) {
+            var row = document.getElementById('bulkRow' + rowId);
+            if (row) { row.remove(); updateProductCount(); renumberRows(); }
+        }
+
+        function renumberRows() {
+            var cards = document.querySelectorAll('#bulkProductTableBody .card');
+            cards.forEach(function(card, index) {
+                var header = card.querySelector('.card-header span');
+                if (header) header.innerHTML = '<i class="bi bi-box-seam"></i> Product #' + (index + 1);
             });
-            
-            // Validate on form submit
-            document.querySelector('form').addEventListener('submit', function(e) {
-                const contact = supplierContactInput.value.trim();
-                
-                // If contact is entered, it must be exactly 10 digits
-                if (contact !== '' && contact.length !== 10) {
-                    e.preventDefault();
-                    alert('Supplier contact must be exactly 10 digits or leave it empty!');
-                    supplierContactInput.focus();
+        }
+
+        function updateProductCount() {
+            var el = document.getElementById('productCount');
+            if (el) el.textContent = document.querySelectorAll('#bulkProductTableBody .card').length;
+        }
+
+        function calcBulkPayment() {
+            var total = parseFloat(document.getElementById('bulkTotalPurchase').value) || 0;
+            var paid  = parseFloat(document.getElementById('bulkAmountPaid').value)  || 0;
+            var due   = Math.max(0, total - paid);
+            document.getElementById('bulkAmountDue').value = due > 0 ? due.toFixed(2) : '';
+            var statusEl = document.getElementById('bulkPaymentStatus');
+            if (!total) {
+                statusEl.textContent = 'Not Specified'; statusEl.className = 'fw-bold text-muted';
+            } else if (paid >= total) {
+                statusEl.textContent = 'Paid'; statusEl.className = 'fw-bold text-success';
+            } else if (paid > 0) {
+                statusEl.textContent = 'Partial (\u20B9' + due.toFixed(2) + ' due)'; statusEl.className = 'fw-bold text-warning';
+            } else {
+                statusEl.textContent = 'Unpaid'; statusEl.className = 'fw-bold text-danger';
+            }
+        }
+
+        async function submitBulkProducts() {
+            var cards = document.querySelectorAll('#bulkProductTableBody .card');
+            if (cards.length === 0) { 
+                alert('⚠️ Please add at least one product!');
+                return;
+            }
+
+            // Read shared supplier + payment info
+            var sharedSupplierName    = (document.getElementById('bulkSupplierName').value    || '').trim();
+            var sharedSupplierContact = (document.getElementById('bulkSupplierContact').value || '').trim();
+            var sharedTotalPurchase   = parseFloat(document.getElementById('bulkTotalPurchase').value)  || 0;
+            var sharedAmountPaid      = parseFloat(document.getElementById('bulkAmountPaid').value)     || 0;
+            var sharedAmountDue       = Math.max(0, sharedTotalPurchase - sharedAmountPaid);
+            var sharedPaymentMethod   = document.getElementById('bulkPaymentMethod').value;
+            var sharedPaymentNotes    = (document.getElementById('bulkPaymentNotes').value    || '').trim();
+
+            // Validate supplier contact
+            if (sharedSupplierContact && !/^[0-9]{10}$/.test(sharedSupplierContact)) {
+                alert('⚠️ Supplier contact must be exactly 10 digits or leave it empty.');
+                document.getElementById('bulkSupplierContact').focus();
+                return;
+            }
+
+            // Validate payment amounts
+            if (sharedAmountPaid > sharedTotalPurchase) {
+                alert('⚠️ Amount Paid (₹' + sharedAmountPaid + ') cannot exceed Total Purchase Amount (₹' + sharedTotalPurchase + ')!');
+                document.getElementById('bulkAmountPaid').focus();
+                return;
+            }
+
+            var products = [];
+            var hasError = false;
+            cards.forEach(function(card, index) {
+                if (hasError) return;
+                var product = {
+                    name: (card.querySelector('[data-field="name"]').value || '').trim(),
+                    category: (card.querySelector('[data-field="category"]').value || '').trim(),
+                    purchasePrice: parseFloat(card.querySelector('[data-field="purchasePrice"]').value) || 0,
+                    sellingPrice: parseFloat(card.querySelector('[data-field="sellingPrice"]').value) || 0,
+                    stock: parseInt(card.querySelector('[data-field="stock"]').value) || 0,
+                    unit: card.querySelector('[data-field="unit"]').value,
+                    mfgDate: card.querySelector('[data-field="mfgDate"]').value || null,
+                    expiryDate: card.querySelector('[data-field="expiryDate"]').value || null,
+                    image: (card.querySelector('[data-field="image"]').value || '').trim(),
+                    batchNumber: (card.querySelector('[data-field="batchNumber"]').value || '').trim(),
+                    // shared supplier + payment
+                    supplierName: sharedSupplierName,
+                    supplierContact: sharedSupplierContact,
+                    totalPurchaseAmount: sharedTotalPurchase,
+                    amountPaid: sharedAmountPaid,
+                    amountDue: sharedAmountDue,
+                    paymentMethod: sharedPaymentMethod,
+                    paymentNotes: sharedPaymentNotes
+                };
+                // Validate required fields
+                if (!product.name) {
+                    alert('⚠️ Product #' + (index+1) + ': Product Name is required!');
+                    card.querySelector('[data-field="name"]').focus();
+                    hasError = true; return;
+                }
+                if (!product.category) {
+                    alert('⚠️ Product #' + (index+1) + ': Category is required!');
+                    card.querySelector('[data-field="category"]').focus();
+                    hasError = true; return;
+                }
+                if (!product.purchasePrice || product.purchasePrice <= 0) {
+                    alert('⚠️ Product #' + (index+1) + ': Purchase Price must be greater than 0!');
+                    card.querySelector('[data-field="purchasePrice"]').focus();
+                    hasError = true; return;
+                }
+                if (!product.sellingPrice || product.sellingPrice <= 0) {
+                    alert('⚠️ Product #' + (index+1) + ': Selling Price must be greater than 0!');
+                    card.querySelector('[data-field="sellingPrice"]').focus();
+                    hasError = true; return;
+                }
+                if (product.sellingPrice < product.purchasePrice) {
+                    var confirmLoss = confirm('⚠️ Product #' + (index+1) + ': Selling Price (₹' + product.sellingPrice + ') is less than Purchase Price (₹' + product.purchasePrice + '). This will result in a loss. Continue anyway?');
+                    if (!confirmLoss) {
+                        card.querySelector('[data-field="sellingPrice"]').focus();
+                        hasError = true; return;
+                    }
+                }
+                if (!product.unit) {
+                    alert('⚠️ Product #' + (index+1) + ': Unit is required!');
+                    card.querySelector('[data-field="unit"]').focus();
+                    hasError = true; return;
+                }
+                // Validate dates
+                if (product.mfgDate && product.expiryDate) {
+                    var mfg = new Date(product.mfgDate);
+                    var exp = new Date(product.expiryDate);
+                    if (exp <= mfg) {
+                        alert('⚠️ Product #' + (index+1) + ': Expiry Date must be after Manufacturing Date!');
+                        card.querySelector('[data-field="expiryDate"]').focus();
+                        hasError = true; return;
+                    }
+                }
+                products.push(product);
+            });
+            if (hasError) return;
+            var btn = document.querySelector('#bulkProductForm .btn-success.btn-lg');
+            var orig = btn ? btn.innerHTML : '';
+            if (btn) { btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Adding...'; btn.disabled = true; }
+            try {
+                var res = await fetch('/inventory/add-bulk', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ products })
+                });
+                var result = await res.json();
+                if (result.success) {
+                    alert('Success! Added ' + result.addedCount + ' products.');
+                    window.location.href = '/inventory';
+                } else {
+                    alert('Error: ' + result.message);
+                    if (btn) { btn.innerHTML = orig; btn.disabled = false; }
+                }
+            } catch(e) {
+                alert('Failed. Please try again.');
+                if (btn) { btn.innerHTML = orig; btn.disabled = false; }
+            }
+        }
+
+        // ============================================================
+        // SINGLE FORM VALIDATION
+        // ============================================================
+        function validateSingleForm() {
+            // Get form fields
+            var name = document.querySelector('#singleProductForm [name="name"]').value.trim();
+            var category = document.querySelector('#singleProductForm [name="category"]').value.trim();
+            var purchasePrice = parseFloat(document.getElementById('purchasePrice').value);
+            var sellingPrice = parseFloat(document.getElementById('sellingPrice').value);
+            var stock = parseFloat(document.querySelector('#singleProductForm [name="stock"]').value);
+            var supplierContact = document.getElementById('supplierContact').value.trim();
+            var totalPurchase = parseFloat(document.getElementById('totalPurchaseAmount').value) || 0;
+            var amountPaid = parseFloat(document.getElementById('amountPaid').value) || 0;
+            var mfgDate = document.getElementById('mfgDate').value;
+            var expiryDate = document.getElementById('expiryDate').value;
+            var hsnCode = document.querySelector('#singleProductForm [name="hsnCode"]').value.trim();
+
+            // Validate required fields
+            if (!name) {
+                alert('⚠️ Product Name is required!');
+                document.querySelector('#singleProductForm [name="name"]').focus();
+                return false;
+            }
+            if (!category) {
+                alert('⚠️ Category is required!');
+                document.querySelector('#singleProductForm [name="category"]').focus();
+                return false;
+            }
+
+            // Validate prices
+            if (!purchasePrice || purchasePrice <= 0) {
+                alert('⚠️ Purchase Price must be greater than 0!');
+                document.getElementById('purchasePrice').focus();
+                return false;
+            }
+            if (!sellingPrice || sellingPrice <= 0) {
+                alert('⚠️ Selling Price must be greater than 0!');
+                document.getElementById('sellingPrice').focus();
+                return false;
+            }
+            if (sellingPrice < purchasePrice) {
+                var confirmLoss = confirm('⚠️ Selling Price (₹' + sellingPrice + ') is less than Purchase Price (₹' + purchasePrice + '). This will result in a LOSS. Continue anyway?');
+                if (!confirmLoss) {
+                    document.getElementById('sellingPrice').focus();
                     return false;
                 }
-            });
-        }
+            }
 
-        // 💰 Auto-calculate payment details
-        const totalPurchaseInput = document.getElementById('totalPurchaseAmount');
-        const amountPaidInput = document.getElementById('amountPaid');
-        const amountDueInput = document.getElementById('amountDue');
-        const paymentMethodInput = document.getElementById('paymentMethod');
-        const paymentStatusInput = document.getElementById('paymentStatus');
+            // Validate stock
+            if (isNaN(stock) || stock < 0) {
+                alert('⚠️ Stock quantity must be 0 or greater!');
+                document.querySelector('#singleProductForm [name="stock"]').focus();
+                return false;
+            }
 
-        function calculatePaymentDetails() {
-            const totalPurchase = parseFloat(totalPurchaseInput.value) || 0;
-            const amountPaid = parseFloat(amountPaidInput.value) || 0;
-            const amountDue = totalPurchase - amountPaid;
+            // Validate supplier contact (optional but if provided must be 10 digits)
+            if (supplierContact && !/^[0-9]{10}$/.test(supplierContact)) {
+                alert('⚠️ Supplier Contact must be exactly 10 digits or leave it empty!');
+                document.getElementById('supplierContact').focus();
+                return false;
+            }
 
-            // Set amount due
-            amountDueInput.value = amountDue.toFixed(2);
+            // Validate HSN code (optional but if provided must be 4-8 digits)
+            if (hsnCode && !/^[0-9]{4,8}$/.test(hsnCode)) {
+                alert('⚠️ HSN Code must be 4-8 digits!');
+                document.querySelector('#singleProductForm [name="hsnCode"]').focus();
+                return false;
+            }
 
-            // Determine payment status
-            let status = 'Not Specified';
-            if (totalPurchase > 0) {
-                if (amountPaid === 0) {
-                    status = 'Pending';
-                } else if (amountDue <= 0) {
-                    status = 'Fully Paid';
-                } else {
-                    status = 'Partial Payment';
+            // Validate payment amounts
+            if (amountPaid > totalPurchase) {
+                alert('⚠️ Amount Paid (₹' + amountPaid + ') cannot exceed Total Purchase Amount (₹' + totalPurchase + ')!');
+                document.getElementById('amountPaid').focus();
+                return false;
+            }
+
+            // Validate dates
+            if (mfgDate && expiryDate) {
+                var mfg = new Date(mfgDate);
+                var exp = new Date(expiryDate);
+                if (exp <= mfg) {
+                    alert('⚠️ Expiry Date must be after Manufacturing Date!');
+                    document.getElementById('expiryDate').focus();
+                    return false;
                 }
             }
 
-            paymentStatusInput.value = status;
-
-            // Color coding for amount due
-            if (amountDue > 0) {
-                amountDueInput.style.color = 'red';
-                amountDueInput.style.fontWeight = 'bold';
-            } else {
-                amountDueInput.style.color = 'green';
-                amountDueInput.style.fontWeight = 'bold';
-            }
+            // All validations passed
+            return true;
         }
 
-        // Prevent negative values and over-payment
-        amountPaidInput.addEventListener('input', function() {
-            const totalPurchase = parseFloat(totalPurchaseInput.value) || 0;
-            const amountPaid = parseFloat(this.value) || 0;
+        // ============================================================
+        // SINGLE FORM - init (wrapped in try-catch so errors don't
+        // stop the toggle functions above from working)
+        // ============================================================
+        document.addEventListener('DOMContentLoaded', function() {
+            try {
+                // Image preview
+                var imageUrlInput = document.getElementById('imageUrl');
+                var imageFileInput = document.getElementById('imageFile');
+                var imagePreview = document.getElementById('imagePreview');
+                var previewImg = document.getElementById('previewImg');
 
-            if (amountPaid < 0) {
-                this.value = 0;
-            }
-            
-            // Warning if paying more than total purchase
-            if (amountPaid > totalPurchase && totalPurchase > 0) {
-                this.style.borderColor = 'orange';
-            } else {
-                this.style.borderColor = '';
-            }
-
-            calculatePaymentDetails();
-        });
-
-        totalPurchaseInput.addEventListener('input', function() {
-            if (parseFloat(this.value) < 0) {
-                this.value = 0;
-            }
-            calculatePaymentDetails();
-        });
-
-        // Auto-set payment method to "none" if amount paid is 0
-        amountPaidInput.addEventListener('change', function() {
-            const amountPaid = parseFloat(this.value) || 0;
-            if (amountPaid === 0 && paymentMethodInput.value !== 'none') {
-                if (confirm('Amount paid is 0. Set payment method to "No Payment Yet"?')) {
-                    paymentMethodInput.value = 'none';
+                if (imageUrlInput) {
+                    imageUrlInput.addEventListener('input', function() {
+                        var url = this.value.trim();
+                        if (url && imagePreview && previewImg) {
+                            if (imageFileInput) imageFileInput.value = '';
+                            previewImg.src = url;
+                            imagePreview.style.display = 'block';
+                            previewImg.onerror = function() { imagePreview.style.display = 'none'; };
+                        } else if (imagePreview && !imageFileInput?.value) {
+                            imagePreview.style.display = 'none';
+                        }
+                    });
                 }
+
+                if (imageFileInput) {
+                    imageFileInput.addEventListener('change', function(e) {
+                        var file = e.target.files[0];
+                        if (file) {
+                            if (file.size > 5 * 1024 * 1024) { alert('Image must be < 5MB'); this.value=''; return; }
+                            if (!file.type.match('image.*')) { alert('Select valid image'); this.value=''; return; }
+                            if (imageUrlInput) imageUrlInput.value = '';
+                            var reader = new FileReader();
+                            reader.onload = function(e) {
+                                if (previewImg) previewImg.src = e.target.result;
+                                if (imagePreview) imagePreview.style.display = 'block';
+                                if (imageUrlInput) imageUrlInput.value = e.target.result;
+                            };
+                            reader.readAsDataURL(file);
+                        } else {
+                            if (imagePreview && !imageUrlInput?.value) imagePreview.style.display = 'none';
+                        }
+                    });
+                }
+
+                // Profit calculation
+                var purchaseInput = document.getElementById('purchasePrice');
+                var sellingInput = document.getElementById('sellingPrice');
+                var profitDisplay = document.getElementById('profitDisplay');
+                var profitPercentage = document.getElementById('profitPercentage');
+                var priceHidden = document.getElementById('price');
+
+                function calculateProfit() {
+                    var purchase = parseFloat(purchaseInput.value) || 0;
+                    var selling = parseFloat(sellingInput.value) || 0;
+                    var profit = selling - purchase;
+                    var pct = purchase > 0 ? ((profit / purchase) * 100).toFixed(1) : 0;
+                    if (profitDisplay) profitDisplay.value = profit.toFixed(2);
+                    if (profitPercentage) {
+                        profitPercentage.textContent = pct + '% profit margin';
+                        if (profit < 0) { profitDisplay.style.backgroundColor='#ffebee'; profitPercentage.style.color='red'; profitPercentage.textContent=pct+'% LOSS!'; }
+                        else if (profit === 0) { profitDisplay.style.backgroundColor='#fff3e0'; profitPercentage.style.color='orange'; }
+                        else { profitDisplay.style.backgroundColor='#e8f5e9'; profitPercentage.style.color='green'; }
+                    }
+                    if (priceHidden) priceHidden.value = selling;
+                }
+
+                if (purchaseInput) purchaseInput.addEventListener('input', calculateProfit);
+                if (sellingInput) sellingInput.addEventListener('input', calculateProfit);
+
+                // MFG / Expiry dates
+                var mfgInput = document.getElementById('mfgDate');
+                var expiryInput = document.getElementById('expiryDate');
+
+                if (mfgInput && expiryInput) {
+                    mfgInput.addEventListener('change', function() {
+                        if (this.value) {
+                            expiryInput.min = this.value;
+                            if (!expiryInput.value) {
+                                var d = new Date(this.value); d.setDate(d.getDate()+7);
+                                expiryInput.value = d.toISOString().split('T')[0];
+                            }
+                        }
+                    });
+                    expiryInput.addEventListener('change', function() {
+                        if (mfgInput.value && this.value && new Date(this.value) <= new Date(mfgInput.value)) {
+                            alert('Expiry must be after MFG date!'); this.value = '';
+                        }
+                    });
+                }
+
+                // Supplier contact
+                var supplierContactInput = document.getElementById('supplierContact');
+                if (supplierContactInput) {
+                    supplierContactInput.addEventListener('input', function() {
+                        this.value = this.value.replace(/[^0-9]/g, '').slice(0, 10);
+                    });
+                }
+
+                // Single form submit validation
+                var singleForm = document.getElementById('singleProductForm');
+                if (singleForm) {
+                    singleForm.addEventListener('submit', function(e) {
+                        if (supplierContactInput) {
+                            var contact = supplierContactInput.value.trim();
+                            if (contact !== '' && contact.length !== 10) {
+                                e.preventDefault();
+                                alert('Supplier contact must be 10 digits or empty!');
+                                supplierContactInput.focus();
+                                return false;
+                            }
+                        }
+                    });
+                }
+
+                // Payment details
+                var totalPurchaseInput = document.getElementById('totalPurchaseAmount');
+                var amountPaidInput = document.getElementById('amountPaid');
+                var amountDueInput = document.getElementById('amountDue');
+                var paymentMethodInput = document.getElementById('paymentMethod');
+                var paymentStatusInput = document.getElementById('paymentStatus');
+
+                function calculatePaymentDetails() {
+                    var totalPurchase = parseFloat(totalPurchaseInput.value) || 0;
+                    var amountPaid = parseFloat(amountPaidInput.value) || 0;
+                    var amountDue = totalPurchase - amountPaid;
+                    if (amountDueInput) {
+                        amountDueInput.value = amountDue.toFixed(2);
+                        amountDueInput.style.color = amountDue > 0 ? 'red' : 'green';
+                        amountDueInput.style.fontWeight = 'bold';
+                    }
+                    var status = 'Not Specified';
+                    if (totalPurchase > 0) {
+                        if (amountPaid === 0) status = 'Pending';
+                        else if (amountDue <= 0) status = 'Fully Paid';
+                        else status = 'Partial Payment';
+                    }
+                    if (paymentStatusInput) paymentStatusInput.value = status;
+                }
+
+                if (amountPaidInput) amountPaidInput.addEventListener('input', function() {
+                    if (parseFloat(this.value) < 0) this.value = 0;
+                    var total = parseFloat(totalPurchaseInput?.value) || 0;
+                    this.style.borderColor = (parseFloat(this.value) > total && total > 0) ? 'orange' : '';
+                    calculatePaymentDetails();
+                });
+                if (totalPurchaseInput) totalPurchaseInput.addEventListener('input', function() {
+                    if (parseFloat(this.value) < 0) this.value = 0;
+                    calculatePaymentDetails();
+                });
+                if (paymentMethodInput) paymentMethodInput.addEventListener('change', calculatePaymentDetails);
+
+            } catch(err) {
+                console.error('Single form init error (toggle still works):', err);
             }
         });
-
-        // Recalculate when payment method changes
-        paymentMethodInput.addEventListener('change', calculatePaymentDetails);
     </script>
 </body>
 </html>

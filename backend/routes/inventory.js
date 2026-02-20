@@ -234,6 +234,128 @@ router.post('/add', isAuthenticated, async (req, res) => {
     }
 });
 
+// 🎯 BULK ADD PRODUCTS
+router.post('/add-bulk', isAuthenticated, async (req, res) => {
+    try {
+        const { products } = req.body;
+
+        if (!products || !Array.isArray(products) || products.length === 0) {
+            return res.json({ success: false, message: 'No products provided' });
+        }
+
+        const adminId = getAdminId(req);
+        const userId = req.session.user ? req.session.user.id : null;
+        const userName = req.session.user ? (req.session.user.fullName || req.session.user.username) : 'Unknown';
+        const branch = req.session.user.branch || 'Main Branch';
+
+        let addedCount = 0;
+        const errors = [];
+
+        for (let i = 0; i < products.length; i++) {
+            try {
+                const productData = products[i];
+
+                // Calculate expirySoon status
+                let expirySoon = false;
+                if (productData.expiryDate) {
+                    const today = new Date();
+                    const expiry = new Date(productData.expiryDate);
+                    const daysUntilExpiry = Math.ceil((expiry - today) / (1000 * 60 * 60 * 24));
+                    expirySoon = daysUntilExpiry >= 0 && daysUntilExpiry <= 30;
+                }
+
+                const amountPaid = parseFloat(productData.amountPaid || 0);
+                const totalPurchaseAmount = parseFloat(productData.totalPurchaseAmount || 0);
+                const amountDue = parseFloat(productData.amountDue || 0);
+                const paymentMethod = productData.paymentMethod || 'none';
+                let supplierPaymentStatus = 'none';
+                if (totalPurchaseAmount > 0) {
+                    if (amountPaid >= totalPurchaseAmount) supplierPaymentStatus = 'paid';
+                    else if (amountPaid > 0) supplierPaymentStatus = 'partial';
+                    else supplierPaymentStatus = 'unpaid';
+                }
+
+                const product = new Product({
+                    name: productData.name,
+                    category: productData.category,
+                    price: parseFloat(productData.sellingPrice || 0),
+                    purchasePrice: parseFloat(productData.purchasePrice || 0),
+                    sellingPrice: parseFloat(productData.sellingPrice || 0),
+                    stock: parseInt(productData.stock || 0),
+                    unit: productData.unit || 'piece',
+                    reorderLevel: 10,
+                    description: '',
+                    image: productData.image || '',
+                    mfgDate: productData.mfgDate || null,
+                    expiryDate: productData.expiryDate || null,
+                    expirySoon: expirySoon,
+                    supplierName: productData.supplierName || '',
+                    supplierContact: productData.supplierContact || '',
+                    hsnCode: '',
+                    lastPurchasedDate: new Date(),
+                    batchNumber: productData.batchNumber || '',
+                    totalPurchaseAmount: totalPurchaseAmount,
+                    amountPaid: amountPaid,
+                    amountDue: amountDue,
+                    paymentMethod: paymentMethod,
+                    paymentNotes: productData.paymentNotes || '',
+                    supplierPaymentStatus: supplierPaymentStatus,
+                    branch: branch,
+                    adminId: adminId,
+                    addedBy: userId
+                });
+
+                await product.save();
+
+                // Track in daily inventory report
+                await initializeProductReport(product, adminId);
+
+                // Log activity to Stock History
+                const stockHistory = new StockHistory({
+                    productId: product._id,
+                    productName: product.name,
+                    action: 'PRODUCT_ADDED',
+                    newValue: {
+                        stock: product.stock,
+                        price: product.price,
+                        purchasePrice: product.purchasePrice,
+                        sellingPrice: product.sellingPrice
+                    },
+                    quantityChanged: product.stock,
+                    performedBy: userId,
+                    performedByName: userName,
+                    branch: product.branch,
+                    adminId: adminId,
+                    supplierName: product.supplierName || '',
+                    supplierContact: product.supplierContact || '',
+                    batchNumber: product.batchNumber || ''
+                });
+                await stockHistory.save();
+
+                addedCount++;
+            } catch (error) {
+                console.error(`Error adding product ${i + 1}:`, error);
+                errors.push(`Product ${i + 1} (${productData.name}): ${error.message}`);
+            }
+        }
+
+        console.log(`[INVENTORY] User: ${req.session.user.username} added ${addedCount} products in bulk`);
+
+        if (addedCount === products.length) {
+            res.json({ success: true, addedCount, message: `Successfully added ${addedCount} products` });
+        } else {
+            res.json({ 
+                success: true, 
+                addedCount, 
+                message: `Added ${addedCount} of ${products.length} products. Some failed: ${errors.join(', ')}` 
+            });
+        }
+    } catch (error) {
+        console.error('Bulk add product error:', error);
+        res.json({ success: false, message: error.message });
+    }
+});
+
 // Edit product page
 router.get('/edit/:id', isAuthenticated, async (req, res) => {
     try {
@@ -521,13 +643,19 @@ router.get('/activity-log/export-csv', isAuthenticated, async (req, res) => {
         const StockHistory = require('../models/StockHistory');
         let filter = { adminId };
         
-        // Staff: only their performed activities
+        // Staff: their own activities + transfers received by them
         if (req.session.user.role === 'staff') {
-            filter.performedBy = req.session.user.id;
+            filter.$or = [
+                { performedBy: req.session.user.id },
+                { transferDestinationEmployee: req.session.user.id }
+            ];
         }
         // Admin with employee filter
         else if (req.session.user.role === 'admin' && employee) {
-            filter.performedBy = employee;
+            filter.$or = [
+                { performedBy: employee },
+                { transferDestinationEmployee: employee }
+            ];
         }
         
         if (productId) {
@@ -622,13 +750,19 @@ router.get('/activity-log', isAuthenticated, async (req, res) => {
         const adminId = getAdminId(req);
         let filter = { adminId };
         
-        // Staff: only their performed activities
+        // Staff: their own activities + transfers received by them
         if (req.session.user.role === 'staff') {
-            filter.performedBy = req.session.user.id;
+            filter.$or = [
+                { performedBy: req.session.user.id },
+                { transferDestinationEmployee: req.session.user.id }
+            ];
         }
         // Admin with employee filter
         else if (req.session.user.role === 'admin' && employee) {
-            filter.performedBy = employee;
+            filter.$or = [
+                { performedBy: employee },
+                { transferDestinationEmployee: employee }
+            ];
         }
         
         // Get products for dropdown - adminId filtered
@@ -881,6 +1015,8 @@ router.post('/transfer', isAuthenticated, async (req, res) => {
         
         if (!destProduct) {
             // Create new product for destination employee
+            // Record the source person (admin) as the supplier so employee can see where stock came from
+            const transferSupplierName = sourceUser ? (sourceUser.fullName || sourceUser.username) : 'Admin Transfer';
             destProduct = new Product({
                 name: sourceProduct.name,
                 category: sourceProduct.category,
@@ -891,9 +1027,16 @@ router.post('/transfer', isAuthenticated, async (req, res) => {
                 unit: sourceProduct.unit,
                 reorderLevel: sourceProduct.reorderLevel || 10,
                 description: sourceProduct.description || '',
+                image: sourceProduct.image || '',
+                hsnCode: sourceProduct.hsnCode || '',
                 mfgDate: sourceProduct.mfgDate,
                 expiryDate: sourceProduct.expiryDate,
-                addedBy: destinationEmployee
+                expirySoon: sourceProduct.expirySoon || false,
+                supplierName: transferSupplierName,
+                supplierContact: '',
+                addedBy: destinationEmployee,
+                adminId: getAdminId(req),
+                branch: destUser ? (destUser.branch || sourceProduct.branch || 'Main Branch') : (sourceProduct.branch || 'Main Branch')
             });
         }
         
@@ -920,7 +1063,8 @@ router.post('/transfer', isAuthenticated, async (req, res) => {
             initiatedBy: req.session.user.id,
             approvedBy: req.session.user.id,
             status: 'Completed',
-            completedDate: new Date()
+            completedDate: new Date(),
+            adminId: getAdminId(req)
         });
         await transfer.save();
         
@@ -944,6 +1088,7 @@ router.post('/transfer', isAuthenticated, async (req, res) => {
         await stockHistoryOut.save();
         
         // Log stock history for destination (INCOMING)
+        // performedBy = destinationEmployee so it appears in their own activity log
         const stockHistoryIn = new StockHistory({
             productId: destProduct._id,
             productName: destProduct.name,
@@ -952,8 +1097,8 @@ router.post('/transfer', isAuthenticated, async (req, res) => {
             newValue: { stock: destProduct.stock },
             quantityChanged: transferQty,
             reason: `Received from ${sourceUser ? (sourceUser.fullName || sourceUser.username) : 'employee'}`,
-            performedBy: req.session.user.id,
-            performedByName: req.session.user.fullName || req.session.user.username,
+            performedBy: destinationEmployee,
+            performedByName: destUser ? (destUser.fullName || destUser.username) : 'Employee',
             transferSourceEmployee: sourceEmployee,
             transferSourceEmployeeName: sourceUser ? (sourceUser.fullName || sourceUser.username) : '',
             transferDestinationEmployee: destinationEmployee,
@@ -988,14 +1133,17 @@ router.get('/api/product/:id', isAuthenticated, async (req, res) => {
     }
 });
 
-// 🎯 SUPPLIER REPORTS - Main page
+// 🎯 SUPPLIER REPORTS - Main page (Admin only)
 router.get('/supplier-reports', isAuthenticated, async (req, res) => {
     try {
         const adminId = getAdminId(req);
         const { search, status, sortBy, dateFilter } = req.query;
         
-        // Build filter
+        // Build filter — staff sees only their own products
         let productFilter = { adminId };
+        if (req.session.user.role === 'staff') {
+            productFilter.addedBy = req.session.user.id;
+        }
         
         // Apply date filter if specified
         if (dateFilter) {
@@ -1035,13 +1183,24 @@ router.get('/supplier-reports', isAuthenticated, async (req, res) => {
                     totalValue: 0,
                     totalPurchaseAmount: 0,
                     amountPaid: 0,
-                    amountDue: 0
+                    amountDue: 0,
+                    firstPurchaseDate: null,
+                    lastPurchaseDate: null
                 });
             }
             
             const supplier = supplierMap.get(key);
             supplier.products.push(product);
             supplier.totalStock += product.stock || 0;
+            
+            // Track purchase dates
+            const productDate = product.createdAt || new Date();
+            if (!supplier.firstPurchaseDate || productDate < supplier.firstPurchaseDate) {
+                supplier.firstPurchaseDate = productDate;
+            }
+            if (!supplier.lastPurchaseDate || productDate > supplier.lastPurchaseDate) {
+                supplier.lastPurchaseDate = productDate;
+            }
             
             // Calculate stock value using purchase price
             const purchasePrice = product.purchasePrice || product.price || 0;
@@ -1116,14 +1275,24 @@ router.get('/supplier-details', isAuthenticated, async (req, res) => {
         const adminId = getAdminId(req);
         const { name, contact } = req.query;
         
-        // Find all products from this supplier
-        const filter = { 
-            adminId,
-            supplierName: name || 'Unknown Supplier'
-        };
-        
-        if (contact) {
-            filter.supplierContact = contact;
+        // Find all products from this supplier — staff sees only their own
+        const filter = { adminId };
+        if (req.session.user.role === 'staff') {
+            filter.addedBy = req.session.user.id;
+        }
+        // 'Unknown Supplier' card represents products with blank/null supplierName
+        if (!name || name === 'Unknown Supplier') {
+            filter.$or = [
+                { supplierName: '' },
+                { supplierName: null },
+                { supplierName: { $exists: false } },
+                { supplierName: 'Unknown Supplier' }
+            ];
+        } else {
+            filter.supplierName = name;
+            if (contact) {
+                filter.supplierContact = contact;
+            }
         }
         
         const products = await Product.find(filter).sort({ createdAt: -1 });
@@ -1152,6 +1321,16 @@ router.get('/supplier-details', isAuthenticated, async (req, res) => {
         
         const amountDue = totalPurchaseAmount - amountPaid;
         
+        // Calculate purchase dates
+        let firstPurchaseDate = null;
+        let lastPurchaseDate = null;
+        
+        if (products.length > 0) {
+            // Products are sorted by createdAt descending, so first is newest
+            lastPurchaseDate = products[0].createdAt;
+            firstPurchaseDate = products[products.length - 1].createdAt;
+        }
+        
         const supplier = {
             name: name || 'Unknown Supplier',
             contact: contact || '',
@@ -1163,7 +1342,8 @@ router.get('/supplier-details', isAuthenticated, async (req, res) => {
             amountPaid: amountPaid,
             amountDue: amountDue,
             paymentStatus: amountDue === 0 ? 'Fully Paid' : amountPaid === 0 ? 'Pending' : 'Partial',
-            lastPurchaseDate: products.length > 0 ? products[0].lastPurchasedDate || products[0].createdAt : null
+            firstPurchaseDate: firstPurchaseDate,
+            lastPurchaseDate: lastPurchaseDate
         };
         
         res.json({ success: true, supplier });
@@ -1179,14 +1359,21 @@ router.get('/supplier-report-print', isAuthenticated, async (req, res) => {
         const adminId = getAdminId(req);
         const { name, contact } = req.query;
         
-        // Find all products from this supplier
-        const filter = { 
-            adminId,
-            supplierName: name || 'Unknown Supplier'
-        };
-        
-        if (contact) {
-            filter.supplierContact = contact;
+        // Find all products from this supplier — staff sees only their own
+        const filter = { adminId };
+        if (req.session.user.role === 'staff') {
+            filter.addedBy = req.session.user.id;
+        }
+        if (!name || name === 'Unknown Supplier') {
+            filter.$or = [
+                { supplierName: '' },
+                { supplierName: null },
+                { supplierName: { $exists: false } },
+                { supplierName: 'Unknown Supplier' }
+            ];
+        } else {
+            filter.supplierName = name;
+            if (contact) { filter.supplierContact = contact; }
         }
         
         const products = await Product.find(filter);
@@ -1287,8 +1474,12 @@ router.get('/supplier-export', isAuthenticated, async (req, res) => {
         const adminId = getAdminId(req);
         const { search, status, sortBy } = req.query;
         
-        // Get all products
-        const products = await Product.find({ adminId });
+        // Get products — staff sees only their own
+        let exportFilter = { adminId };
+        if (req.session.user.role === 'staff') {
+            exportFilter.addedBy = req.session.user.id;
+        }
+        const products = await Product.find(exportFilter);
         
         // Group by supplier
         const supplierMap = new Map();
