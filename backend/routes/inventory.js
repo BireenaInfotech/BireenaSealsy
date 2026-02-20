@@ -407,6 +407,11 @@ router.post('/edit/:id', isAuthenticated, async (req, res) => {
             expirySoon = daysUntilExpiry >= 0 && daysUntilExpiry <= 30;
         }
         
+        // Handle reorderLevel - allow 0 or empty for cakes, default to 10 for others
+        const reorderLevelValue = reorderLevel === '' || reorderLevel === null || reorderLevel === undefined 
+            ? (category && category.toLowerCase().includes('cake') ? 0 : 10)
+            : parseInt(reorderLevel);
+
         const updatedProduct = await Product.findByIdAndUpdate(req.params.id, {
             name,
             category,
@@ -419,7 +424,7 @@ router.post('/edit/:id', isAuthenticated, async (req, res) => {
             stock: parseInt(stock || 0),
             unit,
             gramAmount: parseInt(gramAmount || 0),
-            reorderLevel: parseInt(reorderLevel || 10),
+            reorderLevel: reorderLevelValue,
             description,
             mfgDate: mfgDate || null,
             expiryDate: expiryDate || null,

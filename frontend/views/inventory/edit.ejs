@@ -27,13 +27,15 @@
                                 </div>
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label">Category *</label>
-                                    <select class="form-select" name="category" required>
-                                        <option value="Bread" <%= product.category === 'Bread' ? 'selected' : '' %>>Bread</option>
-                                        <option value="Cake" <%= product.category === 'Cake' ? 'selected' : '' %>>Cake</option>
-                                        <option value="Pastry" <%= product.category === 'Pastry' ? 'selected' : '' %>>Pastry</option>
-                                        <option value="Cookie" <%= product.category === 'Cookie' ? 'selected' : '' %>>Cookie</option>
-                                        <option value="Other" <%= product.category === 'Other' ? 'selected' : '' %>>Other</option>
-                                    </select>
+                                    <input type="text" class="form-control" name="category" list="categoryList" value="<%= product.category %>" required>
+                                    <datalist id="categoryList">
+                                        <option value="Bread">
+                                        <option value="Cake">
+                                        <option value="Pastry">
+                                        <option value="Cookie">
+                                        <option value="Other">
+                                    </datalist>
+                                    <small class="text-muted">Type or select from suggestions</small>
                                 </div>
                             </div>
 
@@ -43,12 +45,12 @@
                                     <input type="number" class="form-control" name="purchasePrice" id="purchasePrice" step="0.01" min="0" value="<%= product.purchasePrice || product.price %>">
                                     <small class="text-muted">Cost per unit (optional)</small>
                                 </div>
-                                <div class="col-md-4 mb-3">
+                                <div class="col-md-4 mb-3" id="sellingPriceContainer" style="<% if (product.category && product.category.toLowerCase().includes('cake')) { %>display: none;<% } %>">
                                     <label class="form-label">Selling Price (₹) *</label>
-                                    <input type="number" class="form-control" name="sellingPrice" id="sellingPrice" step="0.01" min="0.01" value="<%= product.sellingPrice || product.price %>" required>
+                                    <input type="number" class="form-control" name="sellingPrice" id="sellingPrice" step="0.01" min="0" value="<%= product.category && product.category.toLowerCase().includes('cake') ? '0' : (product.sellingPrice || product.price) %>"<% if (!product.category || !product.category.toLowerCase().includes('cake')) { %> required<% } %>>
                                     <small class="text-muted">Retail price</small>
                                 </div>
-                                <div class="col-md-4 mb-3">
+                                <div class="col-md-4 mb-3" id="profitContainer" style="<% if (product.category && product.category.toLowerCase().includes('cake')) { %>display: none;<% } %>">
                                     <label class="form-label">Profit Per Item</label>
                                     <div class="input-group">
                                         <span class="input-group-text">₹</span>
@@ -59,8 +61,7 @@
                             </div>
 
                             <!-- 🎂 CAKE-SPECIFIC PRICING -->
-                            <% if (product.category && product.category.toLowerCase().includes('cake')) { %>
-                            <div class="row" style="border-top: 2px solid #ec4899; padding-top: 15px; margin-top: 10px;">
+                            <div id="cakePricingSection" class="row" style="border-top: 2px solid #ec4899; padding-top: 15px; margin-top: 10px;<% if (!product.category || !product.category.toLowerCase().includes('cake')) { %> display: none;<% } %>">
                                 <div class="col-12 mb-2">
                                     <h6 class="text-primary"><i class="bi bi-cake2"></i> Cake Weight-Based Pricing</h6>
                                     <small class="text-muted">Different prices for different weights</small>
@@ -75,8 +76,12 @@
                                     <input type="number" class="form-control" name="oneKgPrice" step="0.01" min="0" value="<%= product.oneKgPrice || 0 %>">
                                     <small class="text-muted">Price for 1 kg cake</small>
                                 </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">PASTRY (100gms) Price (₹)</label>
+                                    <input type="number" class="form-control" name="pastryPrice" step="0.01" min="0" value="<%= product.pastryPrice || 0 %>">
+                                    <small class="text-muted">Optional - Price for 100g pastry piece</small>
+                                </div>
                             </div>
-                            <% } %>
 
                             <!-- Hidden field for backward compatibility -->
                             <input type="hidden" name="price" id="price" value="<%= product.price %>">
@@ -103,13 +108,14 @@
                                     </select>
                                 </div>
                                 <div class="col-md-6 mb-3" id="gramAmountContainer" style="display: <%= product.unit === 'gms' ? 'block' : 'none' %>;">
-                                    <label class="form-label">Gram Amount *</label>
-                                    <input type="number" class="form-control" name="gramAmount" id="gramAmount" min="1" step="1" value="<%= product.gramAmount || 0 %>" placeholder="e.g., 250">
+                                    <label class="form-label">Gram Amount<% if (product.unit === 'gms') { %> *<% } %></label>
+                                    <input type="number" class="form-control" name="gramAmount" id="gramAmount" step="1" value="<%= product.gramAmount || 0 %>" placeholder="e.g., 250"<% if (product.unit === 'gms') { %> min="1" required<% } %>>
                                     <small class="text-muted">Amount in grams</small>
                                 </div>
                                 <div class="col-md-6 mb-3" id="reorderLevelContainer" style="display: <%= product.unit === 'gms' ? 'none' : 'block' %>;">
-                                    <label class="form-label">Reorder Level *</label>
-                                    <input type="number" class="form-control" name="reorderLevel" min="0" value="<%= product.reorderLevel %>" required>
+                                    <label class="form-label">Reorder Level<% if (!product.category || !product.category.toLowerCase().includes('cake')) { %> *<% } %></label>
+                                    <input type="number" class="form-control" id="reorderLevel" name="reorderLevel" min="0" value="<%= product.reorderLevel %>"<% if (!product.category || !product.category.toLowerCase().includes('cake')) { %> required<% } %>>
+                                    <small class="text-muted"><% if (product.category && product.category.toLowerCase().includes('cake')) { %>Optional for cakes<% } else { %>Minimum stock alert level<% } %></small>
                                 </div>
                             </div>
 
@@ -122,7 +128,7 @@
                                 <a href="/inventory" class="btn btn-secondary">
                                     <i class="bi bi-arrow-left"></i> Cancel
                                 </a>
-                                <button type="submit" class="btn btn-primary">
+                                <button type="submit" class="btn btn-primary" id="updateBtn">
                                     <i class="bi bi-check-circle"></i> Update Product
                                 </button>
                             </div>
@@ -190,19 +196,43 @@
         const unitSelect = document.getElementById('unitSelect');
         const gramAmountContainer = document.getElementById('gramAmountContainer');
         const gramAmountInput = document.getElementById('gramAmount');
+        const gramAmountLabel = gramAmountContainer ? gramAmountContainer.querySelector('label') : null;
         const reorderLevelContainer = document.getElementById('reorderLevelContainer');
+        const reorderLevelInput = document.getElementById('reorderLevel');
         
         if (unitSelect && gramAmountContainer) {
             unitSelect.addEventListener('change', function() {
+                const categoryInput = document.querySelector('input[name="category"]');
+                const category = categoryInput ? categoryInput.value.trim().toLowerCase() : '';
+                const isCake = category === 'cake' || category.includes('cake');
+                
                 if (this.value === 'gms') {
                     gramAmountContainer.style.display = 'block';
                     reorderLevelContainer.style.display = 'none';
-                    if (gramAmountInput) gramAmountInput.setAttribute('required', 'required');
+                    if (gramAmountInput) {
+                        gramAmountInput.setAttribute('required', 'required');
+                        gramAmountInput.setAttribute('min', '1');
+                    }
+                    if (gramAmountLabel) {
+                        gramAmountLabel.innerHTML = 'Gram Amount *';
+                    }
+                    // Remove required from reorderLevel when hidden
+                    if (reorderLevelInput) {
+                        reorderLevelInput.removeAttribute('required');
+                    }
                 } else {
                     gramAmountContainer.style.display = 'none';
                     reorderLevelContainer.style.display = 'block';
                     if (gramAmountInput) {
                         gramAmountInput.removeAttribute('required');
+                        gramAmountInput.removeAttribute('min');
+                    }
+                    if (gramAmountLabel) {
+                        gramAmountLabel.innerHTML = 'Gram Amount';
+                    }
+                    // Add required to reorderLevel when visible (unless it's a cake)
+                    if (reorderLevelInput && !isCake) {
+                        reorderLevelInput.setAttribute('required', 'required');
                     }
                 }
             });
@@ -210,6 +240,121 @@
         
         // Calculate profit on page load
         calculateProfit();
-    </script>
-</body>
-</html>
+        
+        // Category change handler for showing/hiding cake pricing section
+        const categoryInput = document.querySelector('input[name="category"]');
+        const cakePricingSection = document.getElementById('cakePricingSection');
+        const sellingPriceContainer = document.getElementById('sellingPriceContainer');
+        const profitContainer = document.getElementById('profitContainer');
+        const sellingPriceInput = document.getElementById('sellingPrice');
+        const reorderLevelContainer = document.getElementById('reorderLevelContainer');
+        const reorderLevelInput = document.getElementById('reorderLevel');
+        const reorderLevelLabel = reorderLevelContainer ? reorderLevelContainer.querySelector('label') : null;
+        const reorderLevelHint = reorderLevelContainer ? reorderLevelContainer.querySelector('small') : null;
+        
+        if (categoryInput && cakePricingSection) {
+            categoryInput.addEventListener('input', function() {
+                const category = this.value.trim().toLowerCase();
+                
+                if (category === 'cake' || category.includes('cake')) {
+                    // Show cake pricing section
+                    cakePricingSection.style.display = 'block';
+                    
+                    // Hide selling price and profit for cake category
+                    if (sellingPriceContainer) {
+                        sellingPriceContainer.style.display = 'none';
+                        if (sellingPriceInput) {
+                            sellingPriceInput.removeAttribute('required');
+                            sellingPriceInput.setAttribute('min', '0');
+                            sellingPriceInput.value = '0';
+                        }
+                    }
+                    if (profitContainer) {
+                        profitContainer.style.display = 'none';
+                    }
+                    
+                    // Make reorder level optional for cakes
+                    if (reorderLevelInput) {
+                        reorderLevelInput.removeAttribute('required');
+                    }
+                    if (reorderLevelLabel) {
+                        reorderLevelLabel.innerHTML = 'Reorder Level';
+                    }
+                    if (reorderLevelHint) {
+                        reorderLevelHint.innerHTML = 'Optional for cakes';
+                    }
+                } else {
+                    // Hide cake pricing section
+                    cakePricingSection.style.display = 'none';
+                    
+                    // Show selling price and profit for non-cake
+                    if (sellingPriceContainer) {
+                        sellingPriceContainer.style.display = 'block';
+                        if (sellingPriceInput) {
+                            sellingPriceInput.setAttribute('required', 'required');
+                            sellingPriceInput.setAttribute('min', '0.01');
+                        }
+                    }
+                    if (profitContainer) {
+                        profitContainer.style.display = 'block';
+                    }
+                    
+                    // Make reorder level required for non-cakes (if not gms unit)
+                    if (reorderLevelContainer && reorderLevelContainer.style.display !== 'none') {
+                        if (reorderLevelInput) {
+                            reorderLevelInput.setAttribute('required', 'required');
+                        }
+                        if (reorderLevelLabel) {
+                            reorderLevelLabel.innerHTML = 'Reorder Level *';
+                        }
+                        if (reorderLevelHint) {
+                            reorderLevelHint.innerHTML = 'Minimum stock alert level';
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Form submission handler - ensure hidden fields don't block submission
+        const editForm = document.querySelector('form[action^="/inventory/edit/"]');
+        if (editForm) {
+            editForm.addEventListener('submit', function(e) {
+                // Get references to elements
+                const gramAmountInput = document.getElementById('gramAmount');
+                const gramAmountContainer = document.getElementById('gramAmountContainer');
+                
+                // Remove required from hidden fields to prevent validation errors
+                const allInputs = editForm.querySelectorAll('input[required]');
+                allInputs.forEach(input => {
+                    const parent = input.closest('[style*="display: none"], [style*="display:none"]');
+                    if (parent || (input.offsetParent === null && input.type !== 'hidden')) {
+                        input.removeAttribute('required');
+                    }
+                });
+                
+                // For cake products, ensure sellingPrice is set to 0 if hidden
+                const category = categoryInput ? categoryInput.value.trim().toLowerCase() : '';
+                
+                if (category === 'cake' || category.includes('cake')) {
+                    if (sellingPriceInput && sellingPriceContainer.style.display === 'none') {
+                        sellingPriceInput.value = '0';
+                        sellingPriceInput.removeAttribute('required');
+                        sellingPriceInput.removeAttribute('min');
+                    }
+                    
+                    // Make reorder level optional for cakes
+                    if (reorderLevelInput) {
+                        reorderLevelInput.removeAttribute('required');
+                    }
+                }
+                
+                // Ensure gramAmount doesn't block submission if hidden
+                if (gramAmountInput && gramAmountContainer && gramAmountContainer.style.display === 'none') {
+                    gramAmountInput.removeAttribute('required');
+                    gramAmountInput.removeAttribute('min');
+                }
+                
+                // Allow form to submit
+                return true;
+            });
+        }
