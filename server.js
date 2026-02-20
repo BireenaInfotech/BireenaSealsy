@@ -40,12 +40,8 @@ app.set('trust proxy', 1);
 // Disable x-powered-by header
 app.disable('x-powered-by');
 
-// 🔒 PRODUCTION SECURITY: Disable console.log and error stack traces
-if (process.env.NODE_ENV === 'production') {
-    console.log = function() {};
-    console.error = function() {};
-    console.warn = function() {};
-}
+// NOTE: console suppression removed - needed for Vercel crash debugging
+// Vercel captures all stdout/stderr in function logs
 
 // 🔒 HTTPS ENFORCEMENT: Force HTTPS in production
 app.use(forceHTTPS);
