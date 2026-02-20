@@ -1,7 +1,20 @@
-require('dotenv').config();
-const express = require('express');
+// ══════════════════════════════════════════════════════════════════
+// CRASH GUARD — Must be FIRST, before any require()
+// Catches any synchronous throw during module loading
+// ══════════════════════════════════════════════════════════════════
+process.on('uncaughtException', (err) => {
+    console.error('💥 UNCAUGHT EXCEPTION (startup crash):', err.message);
+    console.error('Stack:', err.stack);
+    // Do NOT exit — let Vercel function stay alive
+});
+process.on('unhandledRejection', (reason) => {
+    console.error('💥 UNHANDLED REJECTION:', reason);
+});
 
-// ── STARTUP ENV DIAGNOSTIC (shows in Vercel logs) ──────────────────────────
+require('dotenv').config();
+
+// ── STARTUP ENV DIAGNOSTIC ─────────────────────────────────────
+console.log('🚀 Server starting... NODE_ENV:', process.env.NODE_ENV || 'not set');
 const REQUIRED_ENV = ['MONGODB_URI', 'JWT_SECRET', 'SESSION_SECRET'];
 const missing = REQUIRED_ENV.filter(k => !process.env[k]);
 if (missing.length) {
@@ -9,40 +22,56 @@ if (missing.length) {
 } else {
     console.log('✅ All required env vars present');
 }
-console.log('NODE_ENV:', process.env.NODE_ENV || 'not set');
-// ──────────────────────────────────────────────────────────────────────────
+// ──────────────────────────────────────────────────────────────
 
-const mongoose = require('mongoose');
-const session = require('express-session');
-const MongoStore = require('connect-mongo');
-const bodyParser = require('body-parser');
-const compression = require('compression');
-// Removed connect-flash to avoid util.isArray deprecation - using custom flash middleware instead
-const methodOverride = require('method-override');
-const cookieParser = require('cookie-parser');
-const path = require('path');
-const connectDB = require('./backend/config/database');
-const { addTimezoneToLocals } = require('./backend/utils/timezone');
+// Load all requires inside try/catch to expose crash location
+let express, mongoose, session, MongoStore, bodyParser, compression,
+    methodOverride, cookieParser, path, connectDB, addTimezoneToLocals,
+    helmetConfig, globalLimiter, sanitizeInput, hppProtection,
+    cspNonceGenerator, securityLogger, sanitizeRequest, noCache, productionErrorHandler,
+    forceHTTPS, httpsSecurityHeaders, preventOpenRedirect, secureMethodOverride;
 
-// 🔒 SECURITY MIDDLEWARE IMPORTS
-const {
-    helmetConfig,
-    globalLimiter,
-    sanitizeInput,
-    hppProtection,
-    cspNonceGenerator,
-    securityLogger,
-    sanitizeRequest,
-    noCache,
-    productionErrorHandler
-} = require('./backend/middleware/security');
+try {
+    console.log('📦 Loading core modules...');
+    express = require('express');
+    mongoose = require('mongoose');
+    session = require('express-session');
+    MongoStore = require('connect-mongo');
+    bodyParser = require('body-parser');
+    compression = require('compression');
+    methodOverride = require('method-override');
+    cookieParser = require('cookie-parser');
+    path = require('path');
+    console.log('✅ Core modules loaded');
+} catch(e) {
+    console.error('💥 CRASH loading core modules:', e.message);
+    throw e;
+}
 
-const {
-    forceHTTPS,
-    httpsSecurityHeaders,
-    preventOpenRedirect,
-    secureMethodOverride
-} = require('./backend/middleware/https-security');
+try {
+    console.log('📦 Loading app modules...');
+    connectDB = require('./backend/config/database');
+    ({ addTimezoneToLocals } = require('./backend/utils/timezone'));
+    console.log('✅ App modules loaded');
+} catch(e) {
+    console.error('💥 CRASH loading app modules:', e.message);
+    throw e;
+}
+
+try {
+    console.log('📦 Loading security middleware...');
+    ({
+        helmetConfig, globalLimiter, sanitizeInput, hppProtection,
+        cspNonceGenerator, securityLogger, sanitizeRequest, noCache, productionErrorHandler
+    } = require('./backend/middleware/security'));
+    ({
+        forceHTTPS, httpsSecurityHeaders, preventOpenRedirect, secureMethodOverride
+    } = require('./backend/middleware/https-security'));
+    console.log('✅ Security middleware loaded');
+} catch(e) {
+    console.error('💥 CRASH loading security middleware:', e.message);
+    throw e;
+}
 
 const app = express();
 
@@ -85,23 +114,33 @@ app.use(securityLogger);
 // 🔒 NO CACHE: Prevent caching of sensitive pages
 app.use(noCache);
 
-// Import routes
-const authRoutes = require('./backend/routes/auth');
-const dashboardRoutes = require('./backend/routes/dashboard');
-const inventoryRoutes = require('./backend/routes/inventory');
-const salesRoutes = require('./backend/routes/sales');
-const discountRoutes = require('./backend/routes/discount');
-const billRoutes = require('./backend/routes/bill');
-const reportsRoutes = require('./backend/routes/reports');
-const employeesRoutes = require('./backend/routes/employees');
-const employeeActivityRoutes = require('./backend/routes/employee-activity');
-const contactRoutes = require('./backend/routes/contact');
-const profileRoutes = require('./backend/routes/profile');
-const inventoryReportRoutes = require('./backend/routes/inventory-report');
-const expenseRoutes = require('./backend/routes/expenses');
-const gstReportsRoutes = require('./backend/routes/gst-reports');
-// Hidden routes (superadmin-only)
-const hiddenRoutes = require('./backend/routes/hidden');
+// Import routes — each wrapped so a crash is identified precisely
+let authRoutes, dashboardRoutes, inventoryRoutes, salesRoutes, discountRoutes,
+    billRoutes, reportsRoutes, employeesRoutes, employeeActivityRoutes,
+    contactRoutes, profileRoutes, inventoryReportRoutes, expenseRoutes,
+    gstReportsRoutes, hiddenRoutes;
+try {
+    console.log('📦 Loading routes...');
+    authRoutes            = require('./backend/routes/auth');
+    dashboardRoutes       = require('./backend/routes/dashboard');
+    inventoryRoutes       = require('./backend/routes/inventory');
+    salesRoutes           = require('./backend/routes/sales');
+    discountRoutes        = require('./backend/routes/discount');
+    billRoutes            = require('./backend/routes/bill');
+    reportsRoutes         = require('./backend/routes/reports');
+    employeesRoutes       = require('./backend/routes/employees');
+    employeeActivityRoutes= require('./backend/routes/employee-activity');
+    contactRoutes         = require('./backend/routes/contact');
+    profileRoutes         = require('./backend/routes/profile');
+    inventoryReportRoutes = require('./backend/routes/inventory-report');
+    expenseRoutes         = require('./backend/routes/expenses');
+    gstReportsRoutes      = require('./backend/routes/gst-reports');
+    hiddenRoutes          = require('./backend/routes/hidden');
+    console.log('✅ All routes loaded');
+} catch(e) {
+    console.error('💥 CRASH loading routes:', e.message, e.stack);
+    throw e;
+}
 
 // MongoDB connection - Connect immediately in all environments
 // This is required for session store initialization
@@ -251,19 +290,8 @@ app.use(productionErrorHandler);
 
 const PORT = process.env.PORT || 3000;
 
-// Handle unhandled promise rejections
-process.on('unhandledRejection', (err) => {
-    if (process.env.NODE_ENV !== 'production') {
-        console.error('Unhandled Promise Rejection:', err);
-    }
-    // Don't exit the process
-});
-
-// Handle uncaught exceptions - NEVER exit in serverless (Vercel)
-process.on('uncaughtException', (err) => {
-    console.error('Uncaught Exception:', err.message);
-    // Do NOT call process.exit() - Vercel serverless must stay alive
-});
+// Note: uncaughtException and unhandledRejection handlers are registered
+// at the TOP of this file (before any requires) for maximum crash coverage.
 
 // Only start server if not in Vercel environment
 if (process.env.VERCEL !== '1') {
