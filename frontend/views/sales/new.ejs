@@ -262,6 +262,7 @@
                              data-price="<%= product.price %>"
                              data-halfkgprice="<%= product.halfKgPrice || 0 %>"
                              data-onekgprice="<%= product.oneKgPrice || 0 %>"
+                             data-pastryprice="<%= product.pastryPrice || 0 %>"
                              data-stock="<%= product.stock %>"
                              data-unit="<%= product.unit || 'piece' %>"
                              data-gramamount="<%= product.gramAmount || 0 %>"
@@ -291,6 +292,9 @@
                                     <div style="font-size: 12px; line-height: 1.3;">
                                         <span class="product-price" style="display: block;">½kg: ₹<%= (product.halfKgPrice || 0).toFixed(2) %></span>
                                         <span class="product-price" style="display: block;">1kg: ₹<%= (product.oneKgPrice || 0).toFixed(2) %></span>
+                                        <% if (product.pastryPrice > 0) { %>
+                                        <span class="product-price" style="display: block; font-size: 11px;">Pastry: ₹<%= (product.pastryPrice || 0).toFixed(2) %></span>
+                                        <% } %>
                                     </div>
                                 <% } else { %>
                                     <span class="product-price">₹<%= product.price.toFixed(2) %></span>
@@ -535,6 +539,10 @@
                         <div style="font-size: 18px; font-weight: 600;">One Kg (1 kg)</div>
                         <div style="font-size: 16px; color: #10b981; margin-top: 5px;">₹<span id="fullKgPriceDisplay">0.00</span></div>
                     </button>
+                    <button class="cake-weight-btn" onclick="selectCakeWeight('pastry')" id="pastryOption" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                        <div style="font-size: 18px; font-weight: 600;">PASTRY (100gms)</div>
+                        <div style="font-size: 16px; color: #fff; margin-top: 5px;">₹<span id="pastryPriceDisplay">0.00</span></div>
+                    </button>
                 </div>
             </div>
         </div>
@@ -646,13 +654,14 @@
             const category = element.dataset.category || '';
             const halfKgPrice = parseFloat(element.dataset.halfkgprice) || 0;
             const oneKgPrice = parseFloat(element.dataset.onekgprice) || 0;
+            const pastryPrice = parseFloat(element.dataset.pastryprice) || 0;
             const gramAmount = parseInt(element.dataset.gramamount) || 0;
 
             // Check if this is a cake product with weight-based pricing
             if (category.toLowerCase().includes('cake') && (halfKgPrice > 0 || oneKgPrice > 0)) {
                 // Show weight selection modal
-                console.log(`🎂 Cake product detected: ${name}`, { halfKgPrice, oneKgPrice });
-                openCakeWeightModal(element, id, name, stock, unit, halfKgPrice, oneKgPrice);
+                console.log(`🎂 Cake product detected: ${name}`, { halfKgPrice, oneKgPrice, pastryPrice });
+                openCakeWeightModal(element, id, name, stock, unit, halfKgPrice, oneKgPrice, pastryPrice);
                 return;
             }
 
@@ -1177,6 +1186,12 @@
                 quantity = 0.5;
                 weightLabel = '½kg';
                 // Calculate per-kg rate: if half kg costs ₹200, then ₹200/0.5 = ₹400 per kg
+                price = totalPrice / quantity;
+            } else if (weightType === 'pastry') {
+                totalPrice = parseFloat(currentCakeProduct.pastryPrice) || 0;
+                quantity = 0.1;
+                weightLabel = 'Pastry(100g)';
+                // Pastry is 100g = 0.1kg, so per-kg rate = totalPrice / 0.1
                 price = totalPrice / quantity;
             } else {
                 totalPrice = parseFloat(currentCakeProduct.oneKgPrice) || 0;
