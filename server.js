@@ -1,5 +1,17 @@
 require('dotenv').config();
 const express = require('express');
+
+// ── STARTUP ENV DIAGNOSTIC (shows in Vercel logs) ──────────────────────────
+const REQUIRED_ENV = ['MONGODB_URI', 'JWT_SECRET', 'SESSION_SECRET'];
+const missing = REQUIRED_ENV.filter(k => !process.env[k]);
+if (missing.length) {
+    console.error('❌ MISSING ENV VARS:', missing.join(', '));
+} else {
+    console.log('✅ All required env vars present');
+}
+console.log('NODE_ENV:', process.env.NODE_ENV || 'not set');
+// ──────────────────────────────────────────────────────────────────────────
+
 const mongoose = require('mongoose');
 const session = require('express-session');
 const MongoStore = require('connect-mongo');

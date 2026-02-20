@@ -18,18 +18,16 @@ const connectDB = async () => {
         console.log('🔄 Connecting to MongoDB...');
         
         const db = await mongoose.connect(MONGODB_URI, {
-            serverSelectionTimeoutMS: 30000,
-            socketTimeoutMS: 45000,
-            connectTimeoutMS: 30000,
-            maxPoolSize: 10,
-            minPoolSize: 1,
+            serverSelectionTimeoutMS: 5000,  // Must be < Vercel function timeout (10s)
+            socketTimeoutMS: 8000,
+            connectTimeoutMS: 5000,           // Must be < Vercel function timeout (10s)
+            maxPoolSize: 5,                   // Lower pool for serverless
+            minPoolSize: 0,
             retryWrites: true,
             retryReads: true,
             w: 'majority',
-            // Important for serverless
+            // Important for serverless - don't buffer, fail fast
             bufferCommands: false
-            // Removed deprecated options: keepAlive, keepAliveInitialDelay
-            // These are now default in MongoDB driver 4.x+
         });
 
         isConnected = db.connections[0].readyState === 1;

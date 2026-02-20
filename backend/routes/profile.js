@@ -8,21 +8,30 @@ const path = require('path');
 const fs = require('fs');
 
 // Create uploads directory if it doesn't exist
+// Wrapped in try/catch because Vercel's filesystem is read-only in serverless
 const uploadsDir = path.join(__dirname, '../../frontend/public/uploads');
-if (!fs.existsSync(uploadsDir)) {
-    fs.mkdirSync(uploadsDir, { recursive: true });
+let diskStorageAvailable = false;
+try {
+    if (!fs.existsSync(uploadsDir)) {
+        fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+    diskStorageAvailable = true;
+} catch (e) {
+    console.log('⚠️ Cannot create uploads dir (read-only filesystem on Vercel). Using memory storage.');
 }
 
-// Configure multer for file uploads
-const storage = multer.diskStorage({
-    destination: function(req, file, cb) {
-        cb(null, uploadsDir);
-    },
-    filename: function(req, file, cb) {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
-    }
-});
+// Configure multer - use diskStorage locally, memoryStorage on Vercel (read-only fs)
+const storage = diskStorageAvailable
+    ? multer.diskStorage({
+        destination: function(req, file, cb) {
+            cb(null, uploadsDir);
+        },
+        filename: function(req, file, cb) {
+            const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+            cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+        }
+    })
+    : multer.memoryStorage();
 
 const upload = multer({
     storage: storage,
