@@ -139,7 +139,7 @@ router.post('/add', isAuthenticated, async (req, res) => {
             reorderLevel, description, image, mfgDate, expiryDate, supplierName, 
             supplierContact, batchNumber, branch, hsnCode,
             totalPurchaseAmount, amountPaid, paymentMethod, paymentNotes, trackStock,
-            halfKgPrice, oneKgPrice, gramAmount
+            halfKgPrice, oneKgPrice, pastryPrice, gramAmount
         } = req.body;
 
         // 🎯 Calculate expirySoon status
@@ -175,6 +175,7 @@ router.post('/add', isAuthenticated, async (req, res) => {
             sellingPrice: parseFloat(sellingPrice || price || 0),
             halfKgPrice: parseFloat(halfKgPrice || 0),
             oneKgPrice: parseFloat(oneKgPrice || 0),
+            pastryPrice: parseFloat(pastryPrice || 0),
             trackStock: trackStock === 'false' ? false : true,
             stock: trackStock === 'false' ? 0 : parseInt(stock || 0),
             unit,
@@ -288,6 +289,7 @@ router.post('/add-bulk', isAuthenticated, async (req, res) => {
                     sellingPrice: parseFloat(productData.sellingPrice || 0),
                     halfKgPrice: parseFloat(productData.halfKgPrice || 0),
                     oneKgPrice: parseFloat(productData.oneKgPrice || 0),
+                    pastryPrice: parseFloat(productData.pastryPrice || 0),
                     trackStock: productData.trackStock === 'false' ? false : true,
                     stock: productData.trackStock === 'false' ? 0 : parseInt(productData.stock || 0),
                     unit: productData.unit || 'piece',
@@ -391,7 +393,7 @@ router.post('/edit/:id', isAuthenticated, async (req, res) => {
             name, category, price, purchasePrice, sellingPrice, stock, unit, 
             reorderLevel, description, mfgDate, expiryDate, supplierName, 
             supplierContact, batchNumber, branch, hsnCode, halfKgPrice, oneKgPrice,
-            gramAmount
+            pastryPrice, gramAmount
         } = req.body;
 
         const oldProduct = await Product.findById(req.params.id);
@@ -413,6 +415,7 @@ router.post('/edit/:id', isAuthenticated, async (req, res) => {
             sellingPrice: parseFloat(sellingPrice || price || 0),
             halfKgPrice: parseFloat(halfKgPrice || 0),
             oneKgPrice: parseFloat(oneKgPrice || 0),
+            pastryPrice: parseFloat(pastryPrice || 0),
             stock: parseInt(stock || 0),
             unit,
             gramAmount: parseInt(gramAmount || 0),
