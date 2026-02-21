@@ -70,8 +70,8 @@ const saleItemSchema = new mongoose.Schema({
 const saleSchema = new mongoose.Schema({
     billNumber: {
         type: String,
-        required: true,
-        unique: true
+        required: true
+        // Note: unique per admin, not globally - see compound index below
     },
     items: [saleItemSchema],
     subtotal: {
@@ -243,7 +243,9 @@ const saleSchema = new mongoose.Schema({
     }
 });
 
-// Indexes for better query performance (billNumber already indexed via unique: true)
+// Indexes for better query performance
+// CRITICAL: Bill number unique per admin/shop (each shop has own sequence)
+saleSchema.index({ billNumber: 1, adminId: 1 }, { unique: true });
 saleSchema.index({ createdBy: 1 });
 saleSchema.index({ createdAt: -1 });
 saleSchema.index({ paymentStatus: 1 });
