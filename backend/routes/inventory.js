@@ -42,7 +42,7 @@ router.get('/', isAuthenticated, async (req, res) => {
         const User = require('../models/User');
         const adminId = getAdminId(req);
         let filter = { adminId };
-        const { expiryFilter, stockFilter, employee } = req.query;
+        const { expiryFilter, stockFilter, employee, search } = req.query;
         
         // If user is employee (staff), only show their own products
         if (req.session.user.role === 'staff') {
@@ -52,6 +52,15 @@ router.get('/', isAuthenticated, async (req, res) => {
         // Admin: if employee filter is selected, show only that employee's products
         if (req.session.user.role === 'admin' && employee) {
             filter.addedBy = employee;
+        }
+
+        // 🔍 Add search filter (search by name or category)
+        if (search && search.trim() !== '') {
+            const searchRegex = new RegExp(search.trim(), 'i'); // case-insensitive
+            filter.$or = [
+                { name: searchRegex },
+                { category: searchRegex }
+            ];
         }
         
         // Get all products with filter
@@ -113,7 +122,7 @@ router.get('/', isAuthenticated, async (req, res) => {
             allProducts: allProducts,
             expiringCount,
             expiredCount,
-            filters: { expiryFilter, stockFilter, employee },
+            filters: { expiryFilter, stockFilter, employee, search },
             employees,
             userRole: req.session.user.role
         });
@@ -139,7 +148,7 @@ router.post('/add', isAuthenticated, async (req, res) => {
             reorderLevel, description, image, mfgDate, expiryDate, supplierName, 
             supplierContact, batchNumber, branch, hsnCode,
             totalPurchaseAmount, amountPaid, paymentMethod, paymentNotes, trackStock,
-            halfKgPrice, oneKgPrice, pastryPrice, gramAmount
+            halfKgPrice, oneKgPrice, pastryPrice, pastryGrams, gramAmount
         } = req.body;
 
         // 🎯 Calculate expirySoon status
@@ -176,6 +185,7 @@ router.post('/add', isAuthenticated, async (req, res) => {
             halfKgPrice: parseFloat(halfKgPrice || 0),
             oneKgPrice: parseFloat(oneKgPrice || 0),
             pastryPrice: parseFloat(pastryPrice || 0),
+            pastryGrams: parseInt(pastryGrams || 100),
             trackStock: trackStock === 'false' ? false : true,
             stock: trackStock === 'false' ? 0 : parseInt(stock || 0),
             unit,
@@ -290,6 +300,7 @@ router.post('/add-bulk', isAuthenticated, async (req, res) => {
                     halfKgPrice: parseFloat(productData.halfKgPrice || 0),
                     oneKgPrice: parseFloat(productData.oneKgPrice || 0),
                     pastryPrice: parseFloat(productData.pastryPrice || 0),
+                    pastryGrams: parseInt(productData.pastryGrams || 100),
                     trackStock: productData.trackStock === 'false' ? false : true,
                     stock: productData.trackStock === 'false' ? 0 : parseInt(productData.stock || 0),
                     unit: productData.unit || 'piece',
@@ -370,9 +381,10 @@ router.post('/add-bulk', isAuthenticated, async (req, res) => {
 // Edit product page
 router.get('/edit/:id', isAuthenticated, async (req, res) => {
     try {
-        const product = await Product.findById(req.params.id);
+        const adminId = getAdminId(req);
+        const product = await Product.findOne({ _id: req.params.id, adminId });
         if (!product) {
-            req.flash('error_msg', 'Product not found');
+            req.flash('error_msg', 'Product not found or access denied');
             return res.redirect('/inventory');
         }
         res.render('inventory/edit', { 
@@ -393,10 +405,16 @@ router.post('/edit/:id', isAuthenticated, async (req, res) => {
             name, category, price, purchasePrice, sellingPrice, stock, unit, 
             reorderLevel, description, mfgDate, expiryDate, supplierName, 
             supplierContact, batchNumber, branch, hsnCode, halfKgPrice, oneKgPrice,
-            pastryPrice, gramAmount
+            pastryPrice, pastryGrams, gramAmount, image, trackStock
         } = req.body;
 
-        const oldProduct = await Product.findById(req.params.id);
+        const adminId = getAdminId(req);
+        const oldProduct = await Product.findOne({ _id: req.params.id, adminId });
+        
+        if (!oldProduct) {
+            req.flash('error_msg', 'Product not found or access denied');
+            return res.redirect('/inventory');
+        }
         
         // 🎯 Calculate expirySoon status
         let expirySoon = false;
@@ -412,7 +430,7 @@ router.post('/edit/:id', isAuthenticated, async (req, res) => {
             ? (category && category.toLowerCase().includes('cake') ? 0 : 10)
             : parseInt(reorderLevel);
 
-        const updatedProduct = await Product.findByIdAndUpdate(req.params.id, {
+        const updatedProduct = await Product.findOneAndUpdate({ _id: req.params.id, adminId }, {
             name,
             category,
             price: parseFloat(price || sellingPrice || 0),
@@ -421,11 +439,14 @@ router.post('/edit/:id', isAuthenticated, async (req, res) => {
             halfKgPrice: parseFloat(halfKgPrice || 0),
             oneKgPrice: parseFloat(oneKgPrice || 0),
             pastryPrice: parseFloat(pastryPrice || 0),
-            stock: parseInt(stock || 0),
+            pastryGrams: parseInt(pastryGrams || 100),
+            stock: trackStock === 'false' ? 0 : parseInt(stock || 0),
+            trackStock: trackStock === 'false' ? false : true,
             unit,
             gramAmount: parseInt(gramAmount || 0),
             reorderLevel: reorderLevelValue,
             description,
+            image: image || '',
             mfgDate: mfgDate || null,
             expiryDate: expiryDate || null,
             expirySoon: expirySoon,
@@ -478,7 +499,13 @@ router.post('/edit/:id', isAuthenticated, async (req, res) => {
 // 🎯 Delete product with logging
 router.post('/delete/:id', isAuthenticated, async (req, res) => {
     try {
-        const product = await Product.findById(req.params.id);
+        const adminId = getAdminId(req);
+        const product = await Product.findOne({ _id: req.params.id, adminId });
+        
+        if (!product) {
+            req.flash('error_msg', 'Product not found or access denied');
+            return res.redirect('/inventory');
+        }
         
         // Log activity before deletion
         const stockHistory = new StockHistory({
@@ -496,7 +523,7 @@ router.post('/delete/:id', isAuthenticated, async (req, res) => {
         });
         await stockHistory.save();
         
-        await Product.findByIdAndDelete(req.params.id);
+        await Product.findOneAndDelete({ _id: req.params.id, adminId });
         req.flash('success_msg', 'Product deleted successfully');
         res.redirect('/inventory');
     } catch (error) {
@@ -509,7 +536,10 @@ router.post('/delete/:id', isAuthenticated, async (req, res) => {
 // Low stock alert
 router.get('/low-stock', isAuthenticated, async (req, res) => {
     try {
+        const adminId = getAdminId(req);
         let filter = {
+            adminId,
+            trackStock: { $ne: false },
             $expr: { $lte: ['$stock', '$reorderLevel'] }
         };
         
@@ -530,9 +560,10 @@ router.get('/low-stock', isAuthenticated, async (req, res) => {
 // 🎯 DAMAGE ENTRY - View damage page for a product
 router.get('/damage/:id', isAuthenticated, async (req, res) => {
     try {
-        const product = await Product.findById(req.params.id);
+        const adminId = getAdminId(req);
+        const product = await Product.findOne({ _id: req.params.id, adminId });
         if (!product) {
-            req.flash('error_msg', 'Product not found');
+            req.flash('error_msg', 'Product not found or access denied');
             return res.redirect('/inventory');
         }
         res.render('inventory/damage-entry', { product });
@@ -547,10 +578,11 @@ router.get('/damage/:id', isAuthenticated, async (req, res) => {
 router.post('/damage/:id', isAuthenticated, async (req, res) => {
     try {
         const { damagedQuantity, reason, reasonDetails } = req.body;
-        const product = await Product.findById(req.params.id);
+        const adminId = getAdminId(req);
+        const product = await Product.findOne({ _id: req.params.id, adminId });
         
         if (!product) {
-            req.flash('error_msg', 'Product not found');
+            req.flash('error_msg', 'Product not found or access denied');
             return res.redirect('/inventory');
         }
         
@@ -894,7 +926,12 @@ router.get('/expired', isAuthenticated, async (req, res) => {
 // 🎯 BATCH MANAGEMENT - View batches for a product
 router.get('/batches/:id', isAuthenticated, async (req, res) => {
     try {
-        const product = await Product.findById(req.params.id);
+        const adminId = getAdminId(req);
+        const product = await Product.findOne({ _id: req.params.id, adminId });
+        if (!product) {
+            req.flash('error_msg', 'Product not found or access denied');
+            return res.redirect('/inventory');
+        }
         const batches = await Batch.find({ productId: req.params.id })
             .populate('addedBy', 'fullName username')
             .sort({ expiryDate: 1 });
@@ -911,7 +948,13 @@ router.get('/batches/:id', isAuthenticated, async (req, res) => {
 router.post('/batches/:id/add', isAuthenticated, async (req, res) => {
     try {
         const { batchNumber, mfgDate, expiryDate, quantity, purchasePrice, sellingPrice, supplierName, supplierContact } = req.body;
-        const product = await Product.findById(req.params.id);
+        const adminId = getAdminId(req);
+        const product = await Product.findOne({ _id: req.params.id, adminId });
+        
+        if (!product) {
+            req.flash('error_msg', 'Product not found or access denied');
+            return res.redirect('/inventory');
+        }
         
         const batch = new Batch({
             productId: product._id,
@@ -1003,9 +1046,10 @@ router.post('/transfer', isAuthenticated, async (req, res) => {
         }
         
         // Find the source product (the actual product selected)
-        const sourceProduct = await Product.findById(productId).populate('addedBy');
+        const adminId = getAdminId(req);
+        const sourceProduct = await Product.findOne({ _id: productId, adminId }).populate('addedBy');
         if (!sourceProduct) {
-            req.flash('error_msg', 'Product not found');
+            req.flash('error_msg', 'Product not found or access denied');
             return res.redirect('/inventory/transfer');
         }
         
@@ -1145,9 +1189,14 @@ router.post('/transfer', isAuthenticated, async (req, res) => {
 // 🎯 API ENDPOINT - Get product details
 router.get('/api/product/:id', isAuthenticated, async (req, res) => {
     try {
-        const product = await Product.findById(req.params.id)
+        const adminId = getAdminId(req);
+        const product = await Product.findOne({ _id: req.params.id, adminId })
             .populate('addedBy', 'fullName username')
             .populate('updatedBy', 'fullName username');
+
+        if (!product) {
+            return res.json({ success: false, error: 'Product not found or access denied' });
+        }
         res.json({ success: true, product });
     } catch (error) {
         res.json({ success: false, error: error.message });

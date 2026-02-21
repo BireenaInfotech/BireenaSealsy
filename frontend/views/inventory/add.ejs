@@ -103,7 +103,12 @@
                                         <div class="col-md-6 mb-3">
                                             <label class="form-label">PASTRY (100gms) Price (₹)</label>
                                             <input type="number" class="form-control" name="pastryPrice" id="pastryPrice" step="0.01" min="0" placeholder="0.00">
-                                            <small class="text-muted">Optional - Price for 100g pastry piece</small>
+                                            <small class="text-muted">Optional - Price for pastry</small>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label">PASTRY GRAMS</label>
+                                            <input type="number" class="form-control" name="pastryGrams" id="pastryGrams" step="1" min="1" value="100" placeholder="100">
+                                            <small class="text-muted">Weight in grams (default: 100g)</small>
                                         </div>
                                     </div>
                                     
@@ -493,7 +498,12 @@
                         '<div class="col-md-6 mb-2">' +
                             '<label class="form-label fw-semibold">PASTRY (100gms) Price (₹)</label>' +
                             '<input type="number" class="form-control" data-field="pastryPrice" step="0.01" min="0" placeholder="0.00">' +
-                            '<small class="text-muted">Optional - Price for 100g pastry</small>' +
+                            '<small class="text-muted">Optional - Price for pastry</small>' +
+                        '</div>' +
+                        '<div class="col-md-6 mb-2">' +
+                            '<label class="form-label fw-semibold">PASTRY GRAMS</label>' +
+                            '<input type="number" class="form-control" data-field="pastryGrams" step="1" min="1" value="100" placeholder="100">' +
+                            '<small class="text-muted">Weight in grams (default: 100g)</small>' +
                         '</div>' +
                     '</div>' +
 
@@ -682,6 +692,86 @@
             }
 
             container.appendChild(card);
+            
+            // 🎯 AUTO-FILL: Copy values from previous product card
+            var allCards = container.querySelectorAll('.card');
+            if (allCards.length > 1) {
+                var prevCard = allCards[allCards.length - 2]; // Previous card
+                var newCard = card; // Current new card
+                
+                // Copy category
+                var prevCategory = prevCard.querySelector('[data-field="category"]');
+                var newCategory = newCard.querySelector('[data-field="category"]');
+                if (prevCategory && newCategory && prevCategory.value) {
+                    newCategory.value = prevCategory.value;
+                    // Trigger category change event to show/hide cake pricing
+                    newCategory.dispatchEvent(new Event('input'));
+                }
+                
+                // Copy purchase price
+                var prevPurchasePrice = prevCard.querySelector('[data-field="purchasePrice"]');
+                var newPurchasePrice = newCard.querySelector('[data-field="purchasePrice"]');
+                if (prevPurchasePrice && newPurchasePrice && prevPurchasePrice.value) {
+                    newPurchasePrice.value = prevPurchasePrice.value;
+                }
+                
+                // Copy selling price (if not cake category)
+                var prevSellingPrice = prevCard.querySelector('[data-field="sellingPrice"]');
+                var newSellingPrice = newCard.querySelector('[data-field="sellingPrice"]');
+                if (prevSellingPrice && newSellingPrice && prevSellingPrice.value) {
+                    newSellingPrice.value = prevSellingPrice.value;
+                    newSellingPrice.dispatchEvent(new Event('input')); // Trigger profit calc
+                }
+                
+                // Copy cake prices if applicable
+                var prevHalfKg = prevCard.querySelector('[data-field="halfKgPrice"]');
+                var newHalfKg = newCard.querySelector('[data-field="halfKgPrice"]');
+                if (prevHalfKg && newHalfKg && prevHalfKg.value) {
+                    newHalfKg.value = prevHalfKg.value;
+                }
+                
+                var prevOneKg = prevCard.querySelector('[data-field="oneKgPrice"]');
+                var newOneKg = newCard.querySelector('[data-field="oneKgPrice"]');
+                if (prevOneKg && newOneKg && prevOneKg.value) {
+                    newOneKg.value = prevOneKg.value;
+                }
+                
+                var prevPastryPrice = prevCard.querySelector('[data-field="pastryPrice"]');
+                var newPastryPrice = newCard.querySelector('[data-field="pastryPrice"]');
+                if (prevPastryPrice && newPastryPrice && prevPastryPrice.value) {
+                    newPastryPrice.value = prevPastryPrice.value;
+                }
+                
+                var prevPastryGrams = prevCard.querySelector('[data-field="pastryGrams"]');
+                var newPastryGrams = newCard.querySelector('[data-field="pastryGrams"]');
+                if (prevPastryGrams && newPastryGrams && prevPastryGrams.value) {
+                    newPastryGrams.value = prevPastryGrams.value;
+                }
+                
+                // Copy unit
+                var prevUnit = prevCard.querySelector('[data-field="unit"]');
+                var newUnit = newCard.querySelector('[data-field="unit"]');
+                if (prevUnit && newUnit && prevUnit.value) {
+                    newUnit.value = prevUnit.value;
+                    newUnit.dispatchEvent(new Event('change')); // Trigger gram amount logic
+                }
+                
+                // Copy gram amount if unit is gms
+                var prevGramAmount = prevCard.querySelector('[data-field="gramAmount"]');
+                var newGramAmount = newCard.querySelector('[data-field="gramAmount"]');
+                if (prevGramAmount && newGramAmount && prevGramAmount.value) {
+                    newGramAmount.value = prevGramAmount.value;
+                }
+                
+                // Copy stock tracking toggle state
+                var prevDisableStock = prevCard.querySelector('[data-field="disableStockToggle"]');
+                var newDisableStock = newCard.querySelector('[data-field="disableStockToggle"]');
+                if (prevDisableStock && newDisableStock && prevDisableStock.checked) {
+                    newDisableStock.checked = true;
+                    newDisableStock.dispatchEvent(new Event('change'));
+                }
+            }
+            
             updateProductCount();
             calcBulkTotalPurchaseAmount(); // Calculate initial total
         }
@@ -803,6 +893,7 @@
                 var halfKgPriceInput = card.querySelector('[data-field="halfKgPrice"]');
                 var oneKgPriceInput = card.querySelector('[data-field="oneKgPrice"]');
                 var pastryPriceInput = card.querySelector('[data-field="pastryPrice"]');
+                var pastryGramsInput = card.querySelector('[data-field="pastryGrams"]');
                 var gramAmountInput = card.querySelector('[data-field="gramAmount"]');
                 var product = {
                     name: (card.querySelector('[data-field="name"]').value || '').trim(),
@@ -812,6 +903,7 @@
                     halfKgPrice: halfKgPriceInput ? parseFloat(halfKgPriceInput.value) || 0 : 0,
                     oneKgPrice: oneKgPriceInput ? parseFloat(oneKgPriceInput.value) || 0 : 0,
                     pastryPrice: pastryPriceInput ? parseFloat(pastryPriceInput.value) || 0 : 0,
+                    pastryGrams: pastryGramsInput ? parseInt(pastryGramsInput.value) || 100 : 100,
                     stock: parseInt(card.querySelector('[data-field="stock"]').value) || 0,
                     unit: card.querySelector('[data-field="unit"]').value,
                     gramAmount: gramAmountInput ? parseInt(gramAmountInput.value) || 0 : 0,

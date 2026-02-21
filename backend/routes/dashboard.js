@@ -45,6 +45,7 @@ router.get('/', ensureDBConnection, isAuthenticated, async (req, res) => {
         const totalProducts = await Product.countDocuments(productFilter);
         const lowStockProducts = await Product.countDocuments({ 
             ...productFilter,
+            trackStock: { $ne: false },
             $expr: { $lte: ['$stock', '$reorderLevel'] } 
         });
 
@@ -104,6 +105,7 @@ router.get('/', ensureDBConnection, isAuthenticated, async (req, res) => {
                 const branchProducts = await Product.find({ adminId, addedBy: employee._id });
                 const totalBranchProducts = branchProducts.length;
                 const lowStockBranchProducts = branchProducts.filter(product => 
+                    product.trackStock !== false &&
                     product.stock <= product.reorderLevel
                 ).length;
                 
@@ -138,6 +140,7 @@ router.get('/', ensureDBConnection, isAuthenticated, async (req, res) => {
             const branchProducts = await Product.find({ addedBy: req.session.user.id, adminId });
             const totalBranchProducts = branchProducts.length;
             const lowStockBranchProducts = branchProducts.filter(product => 
+                product.trackStock !== false &&
                 product.stock <= product.reorderLevel
             ).length;
             

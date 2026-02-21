@@ -96,43 +96,71 @@
             <% } %>
         </div>
 
-        <!-- 🎯 Filters -->
+        <!-- 🔍 SEARCH & FILTERS -->
         <div class="card mb-3">
             <div class="card-body">
-                <form method="GET" class="row g-3">
-                    <div class="col-md-3 col-12">
-                        <label class="form-label"><strong>EXPIRY STATUS</strong></label>
-                        <select name="expiryFilter" class="form-select form-select-sm" onchange="this.form.submit()">
-                            <option value="">All Products</option>
-                            <option value="expired" <%= (typeof filters !== 'undefined' && filters.expiryFilter === 'expired') ? 'selected' : '' %>>Expired</option>
-                            <option value="soon" <%= (typeof filters !== 'undefined' && filters.expiryFilter === 'soon') ? 'selected' : '' %>>Expiring Soon (30 days)</option>
-                            <option value="fresh" <%= (typeof filters !== 'undefined' && filters.expiryFilter === 'fresh') ? 'selected' : '' %>>Fresh (>30 days)</option>
-                            <option value="no-expiry" <%= (typeof filters !== 'undefined' && filters.expiryFilter === 'no-expiry') ? 'selected' : '' %>>No Expiry Date</option>
-                        </select>
-                    </div>
-                    <div class="col-md-3 col-12">
-                        <label class="form-label"><strong>STOCK STATUS</strong></label>
-                        <select name="stockFilter" class="form-select form-select-sm" onchange="this.form.submit()">
-                            <option value="">All Stock</option>
-                            <option value="low" <%= (typeof filters !== 'undefined' && filters.stockFilter === 'low') ? 'selected' : '' %>>Low Stock</option>
-                            <option value="out" <%= (typeof filters !== 'undefined' && filters.stockFilter === 'out') ? 'selected' : '' %>>Out of Stock</option>
-                        </select>
-                    </div>
-                    <div class="col-md-3 col-12">
-                        <label class="form-label"><strong>EMPLOYEE</strong></label>
-                        <select name="employee" class="form-select form-select-sm" onchange="this.form.submit()">
-                            <option value="">All Employees</option>
-                            <% if (typeof employees !== 'undefined' && employees.length > 0) { %>
-                                <% employees.forEach(emp => { %>
-                                    <option value="<%= emp._id %>" <%= (typeof filters !== 'undefined' && filters.employee === emp._id.toString()) ? 'selected' : '' %>>
-                                        <%= emp.fullName || emp.username %><% if (emp.role === 'admin') { %> (Admin)<% } %>
-                                    </option>
-                                <% }); %>
-                            <% } %>
-                        </select>
-                    </div>
-                    <div class="col-md-3 col-12 d-flex align-items-end">
-                        <a href="/inventory" class="btn btn-secondary btn-sm w-100">CLEAR FILTERS</a>
+                <form method="GET" id="filterForm">
+                    <input type="hidden" name="search" id="searchParam" value="<%= (typeof filters !== 'undefined' && filters.search) ? filters.search : '' %>">
+                    
+                    <div class="row g-3 align-items-end">
+                        <!-- Search Input with Button -->
+                        <div class="col-md-4">
+                            <div class="input-group">
+                                <input type="text" 
+                                       class="form-control" 
+                                       id="searchInput" 
+                                       placeholder="Search by name or category..." 
+                                       value="<%= (typeof filters !== 'undefined' && filters.search) ? filters.search : '' %>">
+                                <button type="button" class="btn btn-primary" onclick="performSearch()">
+                                    <i class="bi bi-search"></i> SEARCH
+                                </button>
+                            </div>
+                            <small class="text-muted">e.g., Cake, Black Forest, Bread</small>
+                        </div>
+                        
+                        <!-- Expiry Status Filter -->
+                        <div class="col-md-2">
+                            <label class="form-label"><strong>EXPIRY STATUS</strong></label>
+                            <select name="expiryFilter" class="form-select" onchange="this.form.submit()">
+                                <option value="">All Products</option>
+                                <option value="expired" <%= (typeof filters !== 'undefined' && filters.expiryFilter === 'expired') ? 'selected' : '' %>>Expired</option>
+                                <option value="soon" <%= (typeof filters !== 'undefined' && filters.expiryFilter === 'soon') ? 'selected' : '' %>>Expiring Soon</option>
+                                <option value="fresh" <%= (typeof filters !== 'undefined' && filters.expiryFilter === 'fresh') ? 'selected' : '' %>>Fresh</option>
+                                <option value="no-expiry" <%= (typeof filters !== 'undefined' && filters.expiryFilter === 'no-expiry') ? 'selected' : '' %>>No Expiry</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Stock Status Filter -->
+                        <div class="col-md-2">
+                            <label class="form-label"><strong>STOCK STATUS</strong></label>
+                            <select name="stockFilter" class="form-select" onchange="this.form.submit()">
+                                <option value="">All Stock</option>
+                                <option value="low" <%= (typeof filters !== 'undefined' && filters.stockFilter === 'low') ? 'selected' : '' %>>Low Stock</option>
+                                <option value="out" <%= (typeof filters !== 'undefined' && filters.stockFilter === 'out') ? 'selected' : '' %>>Out of Stock</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Employee Filter -->
+                        <div class="col-md-2">
+                            <label class="form-label"><strong>EMPLOYEE</strong></label>
+                            <select name="employee" class="form-select" onchange="this.form.submit()">
+                                <option value="">All Employees</option>
+                                <% if (typeof employees !== 'undefined' && employees.length > 0) { %>
+                                    <% employees.forEach(emp => { %>
+                                        <option value="<%= emp._id %>" <%= (typeof filters !== 'undefined' && filters.employee === emp._id.toString()) ? 'selected' : '' %>>
+                                            <%= emp.fullName || emp.username %><% if (emp.role === 'admin') { %> (Admin)<% } %>
+                                        </option>
+                                    <% }); %>
+                                <% } %>
+                            </select>
+                        </div>
+                        
+                        <!-- Clear All Button -->
+                        <div class="col-md-2">
+                            <button type="button" class="btn btn-outline-secondary w-100" onclick="clearAllFilters()">
+                                <i class="bi bi-x-circle"></i> CLEAR ALL
+                            </button>
+                        </div>
                     </div>
                 </form>
             </div>
@@ -254,5 +282,26 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Search functionality
+        function performSearch() {
+            const searchValue = document.getElementById('searchInput').value.trim();
+            document.getElementById('searchParam').value = searchValue;
+            document.getElementById('filterForm').submit();
+        }
+
+        // Clear all filters and search
+        function clearAllFilters() {
+            window.location.href = '/inventory';
+        }
+
+        // Allow Enter key to trigger search
+        document.getElementById('searchInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                performSearch();
+            }
+        });
+    </script>
 </body>
 </html>
