@@ -174,6 +174,8 @@ router.post('/create', isAuthenticated, async (req, res) => {
             amountPaid 
         } = req.body;
 
+        const adminId = getAdminId(req);
+
         // Validation
         if (!items || items.length === 0) {
             req.flash('error_msg', 'No items in cart');
@@ -204,10 +206,10 @@ router.post('/create', isAuthenticated, async (req, res) => {
 
         for (const item of parsedItems) {
             // Fetch fresh product data from database (don't trust frontend prices)
-            const product = await Product.findById(item.productId);
+            const product = await Product.findOne({ _id: item.productId, adminId });
             
             if (!product) {
-                throw new Error(`Product not found: ${item.productId}`);
+                throw new Error(`Product not found or access denied: ${item.productId}`);
             }
             
             // Validate quantity (use parseFloat for decimal quantities like 0.5 kg)
@@ -718,16 +720,17 @@ router.post('/api/validate-cart', isAuthenticated, async (req, res) => {
             });
         }
 
+        const adminId = getAdminId(req);
         const validatedItems = [];
         let subtotal = 0;
 
         for (const item of items) {
-            const product = await Product.findById(item.productId);
+            const product = await Product.findOne({ _id: item.productId, adminId });
             
             if (!product) {
                 return res.status(400).json({ 
                     success: false, 
-                    message: `Product not found: ${item.productId}` 
+                    message: `Product not found or access denied: ${item.productId}` 
                 });
             }
 
@@ -927,7 +930,7 @@ router.post('/cancel/:id', isAuthenticated, async (req, res) => {
         
         // Restore inventory for all items
         for (const item of sale.items) {
-            const product = await Product.findById(item.product);
+            const product = await Product.findOne({ _id: item.product, adminId });
             if (product) {
                 product.stock += item.quantity;
                 await product.save();
@@ -1007,10 +1010,10 @@ router.post('/add-items/:id', isAuthenticated, async (req, res) => {
             }
             
             // Fetch fresh product data
-            const product = await Product.findById(item.productId);
+            const product = await Product.findOne({ _id: item.productId, adminId });
             
             if (!product) {
-                req.flash('error_msg', `Product not found`);
+                req.flash('error_msg', `Product not found or access denied`);
                 return res.redirect('/bill/' + sale._id);
             }
             
