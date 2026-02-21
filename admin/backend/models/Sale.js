@@ -1,0 +1,258 @@
+const mongoose = require('mongoose');
+
+const saleItemSchema = new mongoose.Schema({
+    product: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Product',
+        required: true
+    },
+    productName: String,
+    quantity: {
+        type: Number,
+        required: true,
+        min: 0.01
+    },
+    price: {
+        type: Number,
+        required: true
+    },
+    subtotal: {
+        type: Number,
+        required: true
+    },
+    itemDiscount: {
+        type: Number,
+        default: 0
+    },
+    itemDiscountType: {
+        type: String,
+        enum: ['percentage', 'fixed'],
+        default: 'fixed'
+    },
+    itemDiscountValue: {
+        type: Number,
+        default: 0
+    },
+    hsnCode: {
+        type: String,
+        default: ''
+    },
+    taxableAmount: {
+        type: Number,
+        default: 0
+    },
+    cgstRate: {
+        type: Number,
+        default: 0
+    },
+    cgstAmount: {
+        type: Number,
+        default: 0
+    },
+    sgstRate: {
+        type: Number,
+        default: 0
+    },
+    sgstAmount: {
+        type: Number,
+        default: 0
+    },
+    igstRate: {
+        type: Number,
+        default: 0
+    },
+    igstAmount: {
+        type: Number,
+        default: 0
+    }
+});
+
+const saleSchema = new mongoose.Schema({
+    billNumber: {
+        type: String,
+        required: true,
+        unique: true
+    },
+    items: [saleItemSchema],
+    subtotal: {
+        type: Number,
+        required: true
+    },
+    discount: {
+        type: Number,
+        default: 0,
+        min: 0
+    },
+    discountType: {
+        type: String,
+        enum: ['percentage', 'fixed'],
+        default: 'fixed'
+    },
+    total: {
+        type: Number,
+        required: true
+    },
+    amountPaid: {
+        type: Number,
+        default: 0,
+        min: 0
+    },
+    dueAmount: {
+        type: Number,
+        default: 0,
+        min: 0
+    },
+    paymentStatus: {
+        type: String,
+        enum: ['paid', 'partial', 'due'],
+        default: 'paid'
+    },
+    customerName: {
+        type: String,
+        default: 'Walk-in Customer'
+    },
+    customerPhone: {
+        type: String,
+        default: ''
+    },
+    customerAddress: {
+        type: String,
+        default: ''
+    },
+    customerType: {
+        type: String,
+        enum: ['B2C', 'B2B'],
+        default: 'B2C'
+    },
+    customerGSTIN: {
+        type: String,
+        default: '',
+        trim: true,
+        uppercase: true
+    },
+    placeOfSupply: {
+        type: String,
+        default: ''
+    },
+    isInterState: {
+        type: Boolean,
+        default: false
+    },
+    totalTaxableAmount: {
+        type: Number,
+        default: 0
+    },
+    totalCGST: {
+        type: Number,
+        default: 0
+    },
+    totalSGST: {
+        type: Number,
+        default: 0
+    },
+    totalIGST: {
+        type: Number,
+        default: 0
+    },
+    totalGST: {
+        type: Number,
+        default: 0
+    },
+    paymentMethod: {
+        type: String,
+        enum: ['cash', 'card', 'upi', 'online'],
+        default: 'cash'
+    },
+    smsSent: {
+        type: Boolean,
+        default: false
+    },
+    paymentHistory: [{
+        amount: {
+            type: Number,
+            required: true
+        },
+        date: {
+            type: Date,
+            default: Date.now
+        },
+        method: {
+            type: String,
+            enum: ['cash', 'card', 'upi', 'other'],
+            default: 'cash'
+        },
+        receivedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User'
+        }
+    }],
+    isCancelled: {
+        type: Boolean,
+        default: false
+    },
+    cancelledAt: {
+        type: Date,
+        default: null
+    },
+    cancelledBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        default: null
+    },
+    cancellationReason: {
+        type: String,
+        default: ''
+    },
+    refundAmount: {
+        type: Number,
+        default: 0,
+        min: 0
+    },
+    refundMethod: {
+        type: String,
+        enum: ['cash', 'card', 'upi', 'online', 'bank_transfer', 'none'],
+        default: 'none'
+    },
+    refundProcessedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        default: null
+    },
+    refundNotes: {
+        type: String,
+        default: ''
+    },
+    branch: {
+        type: String,
+        default: 'Main Branch',
+        required: true
+    },
+    createdBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+    },
+    adminId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true,
+        index: true
+    },
+    createdAt: {
+        type: Date,
+        default: Date.now
+    }
+});
+
+// Indexes for better query performance (billNumber already indexed via unique: true)
+saleSchema.index({ createdBy: 1 });
+saleSchema.index({ createdAt: -1 });
+saleSchema.index({ paymentStatus: 1 });
+saleSchema.index({ customerPhone: 1 });
+saleSchema.index({ total: 1 });
+
+// Virtual for checking if payment is complete
+saleSchema.virtual('isPaid').get(function() {
+    return this.paymentStatus === 'paid';
+});
+
+module.exports = mongoose.model('Sale', saleSchema);

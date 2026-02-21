@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %> - Bireena Bakery</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .edit-profile-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+        }
+        .form-card {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 1.5rem;
+        }
+    </style>
+</head>
+<body>
+    <%- include('../partials/navbar') %>
+
+    <div class="container-fluid mt-4">
+        <div class="row">
+            <div class="col-md-8 offset-md-2">
+                <!-- Header -->
+                <div class="edit-profile-header">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <h2 class="mb-1">
+                                <i class="bi bi-pencil-square"></i> Edit Profile
+                            </h2>
+                            <p class="mb-0 opacity-75">Update your personal and shop information</p>
+                        </div>
+                        <a href="/profile" class="btn btn-light">
+                            <i class="bi bi-arrow-left"></i> Back
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Flash Messages -->
+                <% if (typeof success_msg !== 'undefined' && success_msg.length > 0) { %>
+                    <div class="alert alert-success alert-dismissible fade show" role="alert">
+                        <i class="bi bi-check-circle"></i> <%= success_msg %>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                <% } %>
+                <% if (typeof error_msg !== 'undefined' && error_msg.length > 0) { %>
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <i class="bi bi-exclamation-triangle"></i> <%= error_msg %>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                <% } %>
+
+                <form action="/profile/update" method="POST" enctype="multipart/form-data">
+                    <!-- Personal Information -->
+                    <div class="form-card">
+                        <h4 class="mb-4">
+                            <i class="bi bi-person-badge"></i> Personal Information
+                        </h4>
+
+                        <div class="mb-3">
+                            <label class="form-label">Full Name *</label>
+                            <input type="text" class="form-control" name="fullName" value="<%= user.fullName %>" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Username (Cannot be changed)</label>
+                            <input type="text" class="form-control" value="<%= user.username %>" disabled>
+                            <small class="text-muted">Username cannot be modified for security reasons</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Email Address *</label>
+                            <input type="email" class="form-control" name="email" value="<%= user.email %>" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Phone Number</label>
+                            <input type="tel" class="form-control" name="phone" id="phone" 
+                                   value="<%= user.phone || '' %>" 
+                                   placeholder="10 digit number (Optional)" 
+                                   maxlength="10" pattern="[0-9]{10}">
+                            <small class="text-muted">Enter 10 digit number or leave empty</small>
+                        </div>
+                    </div>
+
+                    <!-- Shop Information (Admin Only) -->
+                    <% if (user.role === 'admin') { %>
+                    <div class="form-card">
+                        <h4 class="mb-4">
+                            <i class="bi bi-shop"></i> Shop Information
+                        </h4>
+
+                        <div class="mb-3">
+                            <label class="form-label">Shop Name</label>
+                            <input type="text" class="form-control" name="shopName" 
+                                   value="<%= user.shopName || '' %>" 
+                                   placeholder="e.g., Bireena Bakery">
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">GST Number</label>
+                            <input type="text" class="form-control" name="shopGST" 
+                                   value="<%= user.shopGST || '' %>" 
+                                   placeholder="e.g., 29ABCDE1234F1Z5">
+                            <small class="text-muted">15 character GST identification number</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Shop Address</label>
+                            <textarea class="form-control" name="shopAddress" rows="3" 
+                                      placeholder="Enter complete shop address"><%= user.shopAddress || '' %></textarea>
+                        </div>
+
+                        <hr class="my-4">
+                        
+                        <h5 class="mb-3">
+                            <i class="bi bi-image"></i> Bill Branding
+                        </h5>
+
+                        <div class="mb-3">
+                            <label class="form-label">
+                                <i class="bi bi-file-image"></i> Shop Logo
+                            </label>
+                            <% if (user.shopLogo) { %>
+                                <div class="mb-2">
+                                    <img src="<%= user.shopLogo %>" alt="Shop Logo" style="max-width: 150px; max-height: 150px; border: 2px solid #ddd; border-radius: 8px; padding: 5px;">
+                                    <p class="text-muted small mt-1">Current logo - Upload new to replace</p>
+                                </div>
+                            <% } %>
+                            <div class="mb-2">
+                                <label class="form-label small text-muted">Option 1: Upload Image File</label>
+                                <input type="file" class="form-control" name="shopLogo" id="shopLogo" accept="image/*">
+                                <small class="text-muted">Upload file (Max 5MB, JPG/PNG/GIF/WEBP)</small>
+                            </div>
+                            <div class="mb-0">
+                                <label class="form-label small text-muted">Option 2: Enter Image URL</label>
+                                <input type="url" class="form-control" name="shopLogoURL" id="shopLogoURL" placeholder="https://example.com/logo.jpg">
+                                <small class="text-muted">Or paste image URL (URL will be used if both are provided)</small>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">
+                                <i class="bi bi-qr-code"></i> Shop QR Code
+                            </label>
+                            <% if (user.shopQRCode) { %>
+                                <div class="mb-2">
+                                    <img src="<%= user.shopQRCode %>" alt="Shop QR Code" style="max-width: 150px; max-height: 150px; border: 2px solid #ddd; border-radius: 8px; padding: 5px;">
+                                    <p class="text-muted small mt-1">Current QR code - Upload new to replace</p>
+                                </div>
+                            <% } %>
+                            <div class="mb-2">
+                                <label class="form-label small text-muted">Option 1: Upload Image File</label>
+                                <input type="file" class="form-control" name="shopQRCode" id="shopQRCode" accept="image/*">
+                                <small class="text-muted">Upload file (Max 5MB, JPG/PNG/GIF/WEBP)</small>
+                            </div>
+                            <div class="mb-0">
+                                <label class="form-label small text-muted">Option 2: Enter Image URL</label>
+                                <input type="url" class="form-control" name="shopQRCodeURL" id="shopQRCodeURL" placeholder="https://example.com/qr-code.jpg">
+                                <small class="text-muted">Or paste image URL (URL will be used if both are provided)</small>
+                            </div>
+                        </div>
+
+                        <hr class="my-4">
+                        
+                        <h5 class="mb-3">
+                            <i class="bi bi-file-text"></i> Bill Footer Customization
+                        </h5>
+
+                        <div class="mb-3">
+                            <label class="form-label">
+                                <i class="bi bi-chat-quote"></i> Bill Footer Text
+                            </label>
+                            <textarea class="form-control" name="billFooterText" rows="2" 
+                                      maxlength="200"
+                                      placeholder="e.g., Visit us at www.myshop.com | Follow us on Instagram @myshop"><%= user.billFooterText || 'This is a computer-generated bill' %></textarea>
+                            <small class="text-muted">
+                                <i class="bi bi-info-circle"></i> This text will appear at the bottom of every bill. You can add your website, social media, or any custom message (Max 200 characters)
+                            </small>
+                            <div class="mt-2">
+                                <span class="badge bg-info">Examples:</span>
+                                <ul class="small text-muted mt-2">
+                                    <li>Visit www.myshop.com for online orders</li>
+                                    <li>Follow us on Instagram: @myshop | WhatsApp: 9876543210</li>
+                                    <li>This is a computer-generated bill | No signature required</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <% } %>
+
+                    <!-- Submit Button -->
+                    <div class="form-card">
+                        <button type="submit" class="btn btn-primary btn-lg w-100">
+                            <i class="bi bi-check-circle"></i> Save Changes
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Phone number validation
+        const phoneInput = document.getElementById('phone');
+        if (phoneInput) {
+            phoneInput.addEventListener('input', function(e) {
+                // Remove non-numeric characters
+                this.value = this.value.replace(/[^0-9]/g, '');
+                
+                // Limit to 10 digits
+                if (this.value.length > 10) {
+                    this.value = this.value.slice(0, 10);
+                }
+            });
+        }
+
+        // File upload validation
+        const logoInput = document.getElementById('shopLogo');
+        const qrInput = document.getElementById('shopQRCode');
+
+        function validateFileUpload(input) {
+            if (input.files && input.files[0]) {
+                const file = input.files[0];
+                const fileSize = file.size / 1024 / 1024; // in MB
+                const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+
+                if (!allowedTypes.includes(file.type)) {
+                    alert('⚠️ Only image files (JPEG, JPG, PNG, GIF) are allowed!');
+                    input.value = '';
+                    return false;
+                }
+
+                if (fileSize > 5) {
+                    alert('⚠️ File size must be less than 5MB!');
+                    input.value = '';
+                    return false;
+                }
+
+                // Show preview
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const preview = input.previousElementSibling;
+                    if (preview && preview.classList.contains('mb-2')) {
+                        const img = preview.querySelector('img');
+                        if (img) {
+                            img.src = e.target.result;
+                        }
+                    }
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        if (logoInput) {
+            logoInput.addEventListener('change', function() {
+                validateFileUpload(this);
+            });
+        }
+
+        if (qrInput) {
+            qrInput.addEventListener('change', function() {
+                validateFileUpload(this);
+            });
+        }
+
+        // Form validation
+        document.querySelector('form').addEventListener('submit', function(e) {
+            const phone = phoneInput.value.trim();
+            
+            // Validate phone number if entered
+            if (phone !== '' && phone.length !== 10) {
+                e.preventDefault();
+                alert('⚠️ Phone number must be exactly 10 digits or leave it empty!');
+                phoneInput.focus();
+                return false;
+            }
+        });
+    </script>
+</body>
+</html>
