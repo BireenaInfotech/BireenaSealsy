@@ -1,0 +1,346 @@
+<!-- Fixed Collapsible Sidebar -->
+<div class="sidebar" id="sidebar">
+    <!-- Sidebar Header with Brand and Toggle -->
+    <div class="sidebar-header">
+        <div class="sidebar-brand">
+            <i class="bi bi-shop"></i>
+            <span class="sidebar-text">Menu</span>
+        </div>
+        <button class="sidebar-collapse-btn" id="sidebarCollapseBtn" onclick="toggleSidebarCollapse()" title="Toggle Sidebar">
+            <i class="bi bi-chevron-left"></i>
+        </button>
+    </div>
+    
+    <!-- Sidebar Navigation -->
+    <div class="sidebar-content">
+        <ul class="sidebar-nav">
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="/dashboard" title="Dashboard">
+                    <i class="bi bi-speedometer2"></i>
+                    <span class="sidebar-text">Dashboard</span>
+                </a>
+            </li>
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="/sales/new" title="New Sale">
+                    <i class="bi bi-plus-circle"></i>
+                    <span class="sidebar-text">New Sale</span>
+                </a>
+            </li>
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="/sales" title="Sales">
+                    <i class="bi bi-cart-check"></i>
+                    <span class="sidebar-text">Sales</span>
+                </a>
+            </li>
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="/inventory" title="Inventory">
+                    <i class="bi bi-box-seam"></i>
+                    <span class="sidebar-text">Inventory</span>
+                </a>
+            </li>
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="/reports" title="Reports">
+                    <i class="bi bi-graph-up"></i>
+                    <span class="sidebar-text">Reports</span>
+                </a>
+            </li>
+            <% if (user && user.role === 'admin') { %>
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="/employees" title="Employees">
+                    <i class="bi bi-people"></i>
+                    <span class="sidebar-text">Employees</span>
+                </a>
+            </li>
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="/employee-activity" title="Employee Activity">
+                    <i class="bi bi-activity"></i>
+                    <span class="sidebar-text">Activity</span>
+                </a>
+            </li>
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="/discount" title="Discounts">
+                    <i class="bi bi-percent"></i>
+                    <span class="sidebar-text">Discounts</span>
+                </a>
+            </li>
+            <% } %>
+            
+            <!-- Profile option -->
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="/profile" title="My Profile">
+                    <i class="bi bi-person-circle"></i>
+                    <span class="sidebar-text">My Profile</span>
+                </a>
+            </li>
+            
+            <!-- Logout option for mobile sidebar -->
+            <li class="sidebar-nav-item sidebar-logout-mobile">
+                <a class="sidebar-nav-link" href="/logout" title="Logout">
+                    <i class="bi bi-box-arrow-right"></i>
+                    <span class="sidebar-text">Logout</span>
+                </a>
+            </li>
+        </ul>
+    </div>
+</div>
+
+<!-- Mobile Overlay -->
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeMobileSidebar()"></div>
+
+<!-- Main Content Wrapper -->
+<div class="main-content" id="mainContent">
+
+<!-- Top Navbar -->
+<nav class="navbar navbar-dark bg-primary sticky-top" style="z-index: 1050;">
+    <div class="container-fluid">
+        <!-- Mobile Layout -->
+        <div class="d-md-none w-100">
+            <!-- Top row: Logo left, User right -->
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <!-- Left: Logo/Brand -->
+                <a class="navbar-brand mb-0 d-flex align-items-center p-0" href="/dashboard" style="font-size: 1.1rem;">
+                    <i class="bi bi-shop" style="font-size: 1.8rem;"></i>
+                    <span class="ms-2">Bireena Salesy</span>
+                </a>
+                
+                <!-- Right: User Profile -->
+                <div class="dropdown">
+                    <a class="nav-link text-white p-0" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-person-circle" style="font-size: 1.5rem;"></i>
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end" style="z-index: 1060;">
+                        <li><span class="dropdown-item-text"><strong><%= user.fullName %></strong></span></li>
+                        <li><span class="dropdown-item-text text-muted small">@<%= user.username %></span></li>
+                        <li><span class="dropdown-item-text text-muted small">Role: <%= user.role %></span></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="/profile">
+                            <i class="bi bi-person-circle"></i> My Profile
+                        </a></li>
+                        <% if (user.role === 'admin') { %>
+                        <li><a class="dropdown-item" href="/profile/change-password">
+                            <i class="bi bi-key"></i> Change Password
+                        </a></li>
+                        <% } %>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="/logout">
+                            <i class="bi bi-box-arrow-right"></i> Logout
+                        </a></li>
+                    </ul>
+                </div>
+            </div>
+            <!-- Bottom row: Hamburger Menu -->
+            <div class="mt-2">
+                <button class="btn btn-outline-light btn-sm w-100" 
+                        onclick="toggleSidebar()" 
+                        aria-label="Toggle sidebar menu">
+                    <i class="bi bi-list"></i> Menu
+                </button>
+            </div>
+        </div>
+        
+        <!-- Desktop Layout -->
+        <div class="d-none d-md-flex align-items-center justify-content-between w-100">
+            <!-- Left: Brand -->
+            <div class="navbar-left d-flex align-items-center gap-2">
+                <a class="navbar-brand mb-0" href="/dashboard">
+                    <i class="bi bi-shop"></i> Bireena Salesy
+                </a>
+            </div>
+            
+            <!-- Right: User Menu -->
+            <div class="navbar-user">
+                <div class="dropdown">
+                    <a class="nav-link dropdown-toggle text-white" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-person-circle"></i> <%= user.username %>
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end" style="z-index: 1060;">
+                        <li><span class="dropdown-item-text"><strong><%= user.fullName %></strong></span></li>
+                        <li><span class="dropdown-item-text text-muted small">Role: <%= user.role %></span></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="/profile">
+                            <i class="bi bi-person-circle"></i> My Profile
+                        </a></li>
+                        <% if (user.role === 'admin') { %>
+                        <li><a class="dropdown-item" href="/profile/change-password">
+                            <i class="bi bi-key"></i> Change Password
+                        </a></li>
+                        <% } %>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="/logout">
+                            <i class="bi bi-box-arrow-right"></i> Logout
+                        </a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</nav>
+
+<script>
+// Sidebar state management
+let sidebarCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
+
+// Initialize sidebar state on page load
+window.addEventListener('DOMContentLoaded', function() {
+    const sidebar = document.getElementById('sidebar');
+    const mainContent = document.getElementById('mainContent');
+    const toggleBtn = document.getElementById('sidebarCollapseBtn');
+    
+    if (sidebarCollapsed && sidebar && mainContent) {
+        sidebar.classList.add('collapsed');
+        mainContent.classList.add('sidebar-collapsed');
+        if (toggleBtn) {
+            const icon = toggleBtn.querySelector('i');
+            if (icon) {
+                icon.classList.remove('bi-chevron-left');
+                icon.classList.add('bi-chevron-right');
+            }
+        }
+    }
+    
+    // Set active link
+    setActiveLink();
+});
+
+// Desktop collapse/expand function
+function toggleSidebarCollapse() {
+    const sidebar = document.getElementById('sidebar');
+    const mainContent = document.getElementById('mainContent');
+    const toggleBtn = document.getElementById('sidebarCollapseBtn');
+    
+    if (!sidebar || !mainContent) return;
+    
+    sidebarCollapsed = !sidebarCollapsed;
+    sidebar.classList.toggle('collapsed');
+    mainContent.classList.toggle('sidebar-collapsed');
+    
+    // Update icon
+    const icon = toggleBtn.querySelector('i');
+    if (sidebarCollapsed) {
+        icon.classList.remove('bi-chevron-left');
+        icon.classList.add('bi-chevron-right');
+    } else {
+        icon.classList.remove('bi-chevron-right');
+        icon.classList.add('bi-chevron-left');
+    }
+    
+    // Save state
+    localStorage.setItem('sidebarCollapsed', sidebarCollapsed);
+}
+
+// Mobile sidebar toggle (only used on mobile via overlay click)
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    const isMobile = window.innerWidth <= 768;
+    
+    if (!sidebar) return;
+    
+    if (isMobile) {
+        // Mobile: show/hide sidebar with overlay
+        sidebar.classList.toggle('mobile-open');
+        if (overlay) overlay.classList.toggle('active');
+        document.body.style.overflow = sidebar.classList.contains('mobile-open') ? 'hidden' : '';
+    }
+}
+
+// Close mobile sidebar
+function closeMobileSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    
+    if (sidebar) sidebar.classList.remove('mobile-open');
+    if (overlay) overlay.classList.remove('active');
+    document.body.style.overflow = '';
+}
+
+// Set active link based on current path
+function setActiveLink() {
+    const currentPath = window.location.pathname;
+    const navLinks = document.querySelectorAll('.sidebar-nav-link');
+    
+    // Sort links by path length (descending) to match more specific paths first
+    const sortedLinks = Array.from(navLinks).sort((a, b) => {
+        const pathA = new URL(a.href).pathname;
+        const pathB = new URL(b.href).pathname;
+        return pathB.length - pathA.length;
+    });
+    
+    let matched = false;
+    
+    sortedLinks.forEach(link => {
+        const linkPath = new URL(link.href).pathname;
+        
+        // Skip if already matched a more specific route
+        if (!matched) {
+            // Exact match
+            if (currentPath === linkPath) {
+                link.classList.add('active');
+                matched = true;
+                return;
+            }
+            // Parent route match (only if current path starts with linkPath followed by /)
+            else if (linkPath !== '/' && currentPath.startsWith(linkPath + '/')) {
+                link.classList.add('active');
+                matched = true;
+                return;
+            }
+        }
+        
+        link.classList.remove('active');
+    });
+}
+
+// Handle window resize
+let resizeTimer;
+window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('sidebarOverlay');
+        
+        // Clean up mobile state on desktop resize
+        if (window.innerWidth > 768) {
+            if (sidebar) sidebar.classList.remove('mobile-open');
+            if (overlay) overlay.classList.remove('active');
+            document.body.style.overflow = '';
+        }
+    }, 250);
+});
+</script>
+
+<!-- Auth Protection Script -->
+<script>
+    // Mark this page as requiring authentication
+    document.body.dataset.requiresAuth = 'true';
+    
+    // Prevent back button from showing cached authenticated pages
+    (function() {
+        'use strict';
+        
+        // Detect if page was loaded from cache
+        window.addEventListener('pageshow', function(event) {
+            if (event.persisted) {
+                // Page loaded from cache, force reload
+                window.location.reload();
+            }
+        });
+        
+        // Check authentication status on page load
+        fetch('/api/check-auth', {
+            method: 'GET',
+            credentials: 'same-origin',
+            headers: { 'Accept': 'application/json' }
+        })
+        .then(response => {
+            if (!response.ok || response.status === 401) {
+                // Not authenticated, redirect to login
+                window.location.replace('/login');
+            }
+        })
+        .catch(() => {
+            // On error, redirect to login
+            window.location.replace('/login');
+        });
+    })();
+</script>
