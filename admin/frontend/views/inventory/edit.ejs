@@ -34,6 +34,63 @@
             max-width: 100%;
             height: auto;
         }
+        
+        /* Made to Order Toggle Enhancement */
+        .made-to-order-toggle {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 12px;
+            padding: 20px;
+            margin: 15px 0;
+            border: 2px solid #5a67d8;
+            box-shadow: 0 4px 6px rgba(102, 126, 234, 0.2);
+            transition: all 0.3s ease;
+        }
+        
+        .made-to-order-toggle:hover {
+            box-shadow: 0 6px 12px rgba(102, 126, 234, 0.3);
+            transform: translateY(-2px);
+        }
+        
+        .made-to-order-toggle .form-check-input {
+            width: 60px;
+            height: 30px;
+            cursor: pointer;
+            border: 2px solid #fff;
+            background-color: rgba(255, 255, 255, 0.3);
+            transition: all 0.3s ease;
+        }
+        
+        .made-to-order-toggle .form-check-input:checked {
+            background-color: #10b981;
+            border-color: #10b981;
+        }
+        
+        .made-to-order-toggle .form-check-input:focus {
+            box-shadow: 0 0 0 0.25rem rgba(255, 255, 255, 0.5);
+        }
+        
+        .made-to-order-toggle .form-check-input:not(:checked) {
+            background-color: rgba(239, 68, 68, 0.5);
+            border-color: rgba(239, 68, 68, 0.8);
+        }
+        
+        .made-to-order-toggle label {
+            color: white;
+            cursor: pointer;
+            user-select: none;
+        }
+        
+        .made-to-order-toggle .toggle-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: white;
+            margin-bottom: 5px;
+        }
+        
+        .made-to-order-toggle .toggle-subtitle {
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.9);
+        }
     </style>
 </head>
 <body>
@@ -48,6 +105,11 @@
                     </div>
                     <div class="card-body">
                         <form action="/inventory/edit/<%= product._id %>" method="POST">
+                            <!-- Hidden fields -->
+                            <input type="hidden" name="price" id="price" value="<%= product.price %>">
+                            <input type="hidden" name="trackStock" id="trackStock" value="<%= product.trackStock === false ? 'false' : 'true' %>">
+
+                            <!-- Basic Information -->
                             <div class="row">
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label">Product Name *</label>
@@ -67,6 +129,7 @@
                                 </div>
                             </div>
 
+                            <!-- Pricing -->
                             <div class="row">
                                 <div class="col-md-4 mb-3">
                                     <label class="form-label">Purchase Price (₹)</label>
@@ -89,123 +152,129 @@
                             </div>
 
                             <!-- 🎂 CAKE-SPECIFIC PRICING -->
-                            <div id="cakePricingSection" class="row" style="border-top: 2px solid #ec4899; padding-top: 15px; margin-top: 10px;">
-                                <div class="col-12 mb-2">
+                            <div id="cakePricingSection" style="border-top: 2px solid #ec4899; padding-top: 15px; margin-top: 10px; margin-bottom: 20px;">
+                                <div class="mb-2">
                                     <h6 class="text-primary"><i class="bi bi-cake2"></i> Cake Weight-Based Pricing</h6>
                                     <small class="text-muted">Different prices for different weights</small>
                                 </div>
-                                <div class="col-md-6 mb-3">
-                                    <label class="form-label">Half Kg Price (₹)</label>
-                                    <input type="number" class="form-control" name="halfKgPrice" step="0.01" min="0" value="<%= product.halfKgPrice || 0 %>">
-                                    <small class="text-muted">Price for 0.5 kg cake</small>
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <label class="form-label">One Kg Price (₹)</label>
-                                    <input type="number" class="form-control" name="oneKgPrice" step="0.01" min="0" value="<%= product.oneKgPrice || 0 %>">
-                                    <small class="text-muted">Price for 1 kg cake</small>
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <label class="form-label">PASTRY (100gms) Price (₹)</label>
-                                    <input type="number" class="form-control" name="pastryPrice" step="0.01" min="0" value="<%= product.pastryPrice || 0 %>">
-                                    <small class="text-muted">Optional - Price for pastry piece</small>
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <label class="form-label">PASTRY Grams</label>
-                                    <input type="number" class="form-control" name="pastryGrams" step="1" min="0" value="<%= product.pastryGrams || 100 %>">
-                                    <small class="text-muted">Weight in grams (default: 100g)</small>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Half Kg Price (₹)</label>
+                                        <input type="number" class="form-control" name="halfKgPrice" step="0.01" min="0" value="<%= product.halfKgPrice || 0 %>">
+                                        <small class="text-muted">Price for 0.5 kg cake</small>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">One Kg Price (₹)</label>
+                                        <input type="number" class="form-control" name="oneKgPrice" step="0.01" min="0" value="<%= product.oneKgPrice || 0 %>">
+                                        <small class="text-muted">Price for 1 kg cake</small>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">PASTRY (100gms) Price (₹)</label>
+                                        <input type="number" class="form-control" name="pastryPrice" step="0.01" min="0" value="<%= product.pastryPrice || 0 %>">
+                                        <small class="text-muted">Optional - Price for pastry piece</small>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">PASTRY Grams</label>
+                                        <input type="number" class="form-control" name="pastryGrams" step="1" min="0" value="<%= product.pastryGrams || 100 %>">
+                                        <small class="text-muted">Weight in grams (default: 100g)</small>
+                                    </div>
                                 </div>
                             </div>
 
-                            <!-- Hidden field for backward compatibility -->
-                            <input type="hidden" name="price" id="price" value="<%= product.price %>">
-            <!-- Hidden field for stock tracking control -->
-            <input type="hidden" name="trackStock" id="trackStock" value="<%= product.trackStock === false ? 'false' : 'true' %>">
+                            <!-- 📊 STOCK MANAGEMENT -->
+                            <div class="card mb-3">
+                                <div class="card-header bg-light">
+                                    <h6 class="mb-0"><i class="bi bi-box-seam"></i> Stock Management</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label">Stock Quantity</label>
+                                            <input type="number" class="form-control" name="stock" id="editStock" min="0" value="<%= product.stock %>" <% if (product.trackStock === false) { %>readonly disabled style="background-color: #f8f9fa;"<% } %>>
+                                        </div>
 
-            <!-- 📊 STOCK MANAGEMENT -->
-            <div class="card mb-3">
-                <div class="card-header bg-light">
-                    <h6 class="mb-0"><i class="bi bi-box-seam"></i> Stock Management</h6>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Stock Quantity</label>
-                            <input type="number" class="form-control" name="stock" id="editStock" min="0" value="<%= product.stock %>" <% if (product.trackStock === false) { %>readonly disabled style="background-color: #f8f9fa;"<% } %>>
-                            
-                            <!-- Toggle for stock tracking -->
-                            <div class="form-check form-switch mt-2">
-                                <input class="form-check-input" type="checkbox" id="disableStockToggle" style="cursor: pointer;" <% if (product.trackStock === false) { %>checked<% } %>>
-                                <label class="form-check-label" for="disableStockToggle" style="cursor: pointer; font-size: 0.9rem;">
-                                    <strong>Disable Stock Tracking</strong> (Made to Order)
-                                </label>
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label">Unit *</label>
+                                            <select class="form-select" name="unit" id="unitSelect" required>
+                                                <option value="piece" <%= product.unit === 'piece' ? 'selected' : '' %>>Piece</option>
+                                                <option value="kg" <%= product.unit === 'kg' ? 'selected' : '' %>>Kilogram (kg)</option>
+                                                <option value="gms" <%= product.unit === 'gms' ? 'selected' : '' %>>Grams (gms)</option>
+                                                <option value="dozen" <%= product.unit === 'dozen' ? 'selected' : '' %>>Dozen</option>
+                                                <option value="box" <%= product.unit === 'box' ? 'selected' : '' %>>Box</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <!-- Made to Order Toggle -->
+                                    <div class="made-to-order-toggle">
+                                        <div class="form-check form-switch d-flex align-items-center">
+                                            <input class="form-check-input me-3" type="checkbox" id="disableStockToggle" <% if (product.trackStock === false) { %>checked<% } %>>
+                                            <label class="form-check-label flex-grow-1" for="disableStockToggle">
+                                                <div class="toggle-title">
+                                                    <i class="bi bi-infinity"></i> Made to Order
+                                                </div>
+                                                <div class="toggle-subtitle">
+                                                    Disable stock tracking for unlimited sales
+                                                </div>
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <small class="text-info d-block mt-2" id="stockStatusNote">
+                                        <i class="bi bi-info-circle"></i> Stock tracking disabled - can sell unlimited quantity
+                                    </small>
+
+                                    <div class="row mt-3">
+                                        <div class="col-md-6 mb-3" id="gramAmountContainer">
+                                            <label class="form-label">Gram Amount<% if (product.unit === 'gms') { %> *<% } %></label>
+                                            <input type="number" class="form-control" name="gramAmount" id="gramAmount" step="1" value="<%= product.gramAmount || 0 %>" placeholder="e.g., 250"<% if (product.unit === 'gms') { %> min="1" required<% } %>>
+                                            <small class="text-muted">Amount in grams</small>
+                                        </div>
+                                        <div class="col-md-6 mb-3" id="reorderLevelContainer">
+                                            <label class="form-label" id="reorderLevelLabel">Reorder Level<% if (product.trackStock !== false && product.unit !== 'gms') { %> *<% } %></label>
+                                            <input type="number" class="form-control" id="reorderLevel" name="reorderLevel" min="0" value="<%= product.reorderLevel %>"<% if (product.trackStock !== false && product.unit !== 'gms') { %> required<% } %>>
+                                            <small class="text-muted" id="reorderLevelHint"><% if (product.trackStock === false) { %>Optional (stock tracking disabled)<% } else { %>Minimum stock alert level<% } %></small>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                            <small class="text-info" id="stockStatusNote">
-                                <i class="bi bi-info-circle"></i> Stock tracking disabled - can sell unlimited quantity
-                            </small>
-                        </div>
 
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Unit *</label>
-                            <select class="form-select" name="unit" id="unitSelect" required>
-                                <option value="piece" <%= product.unit === 'piece' ? 'selected' : '' %>>Piece</option>
-                                <option value="kg" <%= product.unit === 'kg' ? 'selected' : '' %>>Kilogram (kg)</option>
-                                <option value="gms" <%= product.unit === 'gms' ? 'selected' : '' %>>Grams (gms)</option>
-                                <option value="dozen" <%= product.unit === 'dozen' ? 'selected' : '' %>>Dozen</option>
-                                <option value="box" <%= product.unit === 'box' ? 'selected' : '' %>>Box</option>
-                            </select>
-                        </div>
-                    </div>
+                            <!-- 📝 ADDITIONAL INFORMATION -->
+                            <div class="card mb-3">
+                                <div class="card-header bg-light">
+                                    <h6 class="mb-0"><i class="bi bi-file-text"></i> Additional Information</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label class="form-label">Description</label>
+                                        <textarea class="form-control" name="description" rows="3" placeholder="Enter product description..."><%= product.description %></textarea>
+                                    </div>
 
-                    <div class="row">
-                        <div class="col-md-6 mb-3" id="gramAmountContainer">
-                            <label class="form-label">Gram Amount<% if (product.unit === 'gms') { %> *<% } %></label>
-                            <input type="number" class="form-control" name="gramAmount" id="gramAmount" step="1" value="<%= product.gramAmount || 0 %>" placeholder="e.g., 250"<% if (product.unit === 'gms') { %> min="1" required<% } %>>
-                            <small class="text-muted">Amount in grams</small>
-                        </div>
-                        <div class="col-md-6 mb-3" id="reorderLevelContainer">
-                            <label class="form-label" id="reorderLevelLabel">Reorder Level<% if (product.trackStock !== false && product.unit !== 'gms') { %> *<% } %></label>
-                            <input type="number" class="form-control" id="reorderLevel" name="reorderLevel" min="0" value="<%= product.reorderLevel %>"<% if (product.trackStock !== false && product.unit !== 'gms') { %> required<% } %>>
-                            <small class="text-muted" id="reorderLevelHint"><% if (product.trackStock === false) { %>Optional (stock tracking disabled)<% } else { %>Minimum stock alert level<% } %></small>
-                        </div>
-                    </div>
-                </div>
-            </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Product Image URL</label>
+                                        <input type="url" class="form-control" name="image" id="imageUrl" value="<%= product.image || '' %>" placeholder="https://example.com/image.jpg">
+                                        <small class="text-muted">Enter a valid image URL</small>
+                                    </div>
 
-            <!-- 📝 ADDITIONAL INFO -->
-            <div class="card mb-3">
-                <div class="card-header bg-light">
-                    <h6 class="mb-0"><i class="bi bi-file-text"></i> Additional Information</h6>
-                </div>
-                <div class="card-body">
-                    <div class="mb-3">
-                        <label class="form-label">Description</label>
-                        <textarea class="form-control" name="description" rows="3" placeholder="Enter product description..."><%= product.description %></textarea>
-                    </div>
+                                    <!-- Image Preview -->
+                                    <div class="mb-3" id="imagePreviewContainer">
+                                        <label class="form-label">Image Preview</label>
+                                        <div class="border rounded p-2 text-center bg-light">
+                                            <img id="imagePreview" src="<%= product.image || '' %>" alt="Product Preview" style="max-width: 200px; max-height: 200px; object-fit: contain;">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
 
-                    <div class="mb-3">
-                        <label class="form-label">Product Image URL</label>
-                        <input type="url" class="form-control" name="image" id="imageUrl" value="<%= product.image || '' %>" placeholder="https://example.com/image.jpg">
-                        <small class="text-muted">Enter a valid image URL</small>
-                    </div>
-
-                    <!-- Image Preview -->
-                    <div class="mb-3" id="imagePreviewContainer">
-                        <label class="form-label">Image Preview</label>
-                        <div class="border rounded p-2 text-center bg-light">
-                            <img id="imagePreview" src="<%= product.image || '' %>" alt="Product Preview" style="max-width: 200px; max-height: 200px; object-fit: contain;">
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="d-grid gap-2 mt-3">
-                <button type="submit" class="btn btn-primary btn-lg" id="updateBtn">
-                    <i class="bi bi-check-circle"></i> Update Product
-                </button>
-                <a href="/inventory" class="btn btn-outline-secondary">
-                    <i class="bi bi-arrow-left"></i> Back to Inventory
-                </a>
-            </div>
+                            <!-- Submit Buttons -->
+                            <div class="d-grid gap-2 mt-3">
+                                <button type="submit" class="btn btn-primary btn-lg" id="updateBtn">
+                                    <i class="bi bi-check-circle"></i> Update Product
+                                </button>
+                                <a href="/inventory" class="btn btn-outline-secondary">
+                                    <i class="bi bi-arrow-left"></i> Back to Inventory
+                                </a>
+                            </div>
                         </form>
                     </div>
                 </div>
