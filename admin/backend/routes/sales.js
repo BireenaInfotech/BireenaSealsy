@@ -375,8 +375,7 @@ router.post('/create', isAuthenticated, async (req, res) => {
             billNumber = `BILL-${String(lastNumber + 1).padStart(4, '0')}`;
         }
 
-        // Create sale
-        const adminId = getAdminId(req);
+        // Create sale (adminId already declared at top)
         const sale = new Sale({
             billNumber,
             items: saleItems,
