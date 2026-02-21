@@ -100,7 +100,17 @@
         <div class="card mb-3">
             <div class="card-body">
                 <form method="GET" class="row g-3">
-                    <div class="col-md-3 col-12">
+                    <div class="col-md-4 col-12">
+                        <label class="form-label"><strong>🔍 SEARCH</strong></label>
+                        <div class="input-group">
+                            <input type="text" name="search" class="form-control" placeholder="Search by name or category..." value="<%= (typeof filters !== 'undefined' && filters.search) ? filters.search : '' %>">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-search"></i> Search
+                            </button>
+                        </div>
+                        <small class="text-muted">e.g., Cake, Black Forest, Bread</small>
+                    </div>
+                    <div class="col-md-2 col-12">
                         <label class="form-label"><strong>EXPIRY STATUS</strong></label>
                         <select name="expiryFilter" class="form-select form-select-sm" onchange="this.form.submit()">
                             <option value="">All Products</option>
@@ -110,7 +120,7 @@
                             <option value="no-expiry" <%= (typeof filters !== 'undefined' && filters.expiryFilter === 'no-expiry') ? 'selected' : '' %>>No Expiry Date</option>
                         </select>
                     </div>
-                    <div class="col-md-3 col-12">
+                    <div class="col-md-2 col-12">
                         <label class="form-label"><strong>STOCK STATUS</strong></label>
                         <select name="stockFilter" class="form-select form-select-sm" onchange="this.form.submit()">
                             <option value="">All Stock</option>
@@ -118,7 +128,7 @@
                             <option value="out" <%= (typeof filters !== 'undefined' && filters.stockFilter === 'out') ? 'selected' : '' %>>Out of Stock</option>
                         </select>
                     </div>
-                    <div class="col-md-3 col-12">
+                    <div class="col-md-2 col-12">
                         <label class="form-label"><strong>EMPLOYEE</strong></label>
                         <select name="employee" class="form-select form-select-sm" onchange="this.form.submit()">
                             <option value="">All Employees</option>
@@ -131,8 +141,10 @@
                             <% } %>
                         </select>
                     </div>
-                    <div class="col-md-3 col-12 d-flex align-items-end">
-                        <a href="/inventory" class="btn btn-secondary btn-sm w-100">CLEAR FILTERS</a>
+                    <div class="col-md-2 col-12 d-flex align-items-end">
+                        <a href="/inventory" class="btn btn-secondary btn-sm w-100">
+                            <i class="bi bi-x-circle"></i> CLEAR ALL
+                        </a>
                     </div>
                 </form>
             </div>
@@ -190,7 +202,7 @@
                                                         1kg: ₹<%= product.oneKgPrice.toFixed(2) %><br>
                                                     <% } %>
                                                     <% if (product.pastryPrice > 0) { %>
-                                                        <span class="text-success">🧁 Pastry: ₹<%= product.pastryPrice.toFixed(2) %></span>
+                                                        <span class="text-success">🧁 Pastry (<%= product.pastryGrams || 100 %>g): ₹<%= product.pastryPrice.toFixed(2) %></span>
                                                     <% } %>
                                                 </small>
                                             <% } else { %>

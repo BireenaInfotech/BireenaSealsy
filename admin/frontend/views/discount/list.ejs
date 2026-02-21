@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Discounts - Bireena Bakery</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <%- include('../partials/navbar') %>
+
+    <% if (typeof success_msg !== 'undefined' && success_msg.length > 0) { %>
+        <div class="alert alert-success alert-dismissible fade show m-3">
+            <%= success_msg %>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    <% } %>
+
+    <div class="container-fluid mt-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2><i class="bi bi-percent"></i> Discount Management</h2>
+            <a href="/discount/add" class="btn btn-success">
+                <i class="bi bi-plus-circle"></i> Add Discount
+            </a>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                <% if (discounts.length === 0) { %>
+                    <p class="text-center text-muted">No discounts configured</p>
+                <% } else { %>
+                    <!-- Mobile view -->
+                    <div class="d-md-none">
+                        <% discounts.forEach(discount => { %>
+                            <div class="card mb-3">
+                                <div class="card-body">
+                                    <div class="form-check mb-2">
+                                        <input type="radio" class="form-check-input" name="selectedDiscount" 
+                                               id="discount_mobile_<%= discount._id %>"
+                                               data-name="<%= discount.name %>"
+                                               data-type="<%= discount.type %>"
+                                               data-value="<%= discount.value %>"
+                                               data-applicable="<%= discount.applicableOn %>"
+                                               data-category="<%= discount.categoryOrProduct || discount.applicableOn %>"
+                                               data-enddate="<%= discount.endDate %>"
+                                               onchange="selectDiscount()"
+                                               style="width: 20px; height: 20px;">
+                                        <label class="form-check-label" for="discount_mobile_<%= discount._id %>">
+                                            <strong><%= discount.name %></strong>
+                                        </label>
+                                    </div>
+                                    <div class="mb-2">
+                                        <span class="badge bg-primary">
+                                            <%= discount.type === 'percentage' ? discount.value + '%' : '₹' + discount.value %>
+                                        </span>
+                                        <span class="badge <%= discount.isActive ? 'bg-success' : 'bg-danger' %>">
+                                            <%= discount.isActive ? 'Active' : 'Inactive' %>
+                                        </span>
+                                    </div>
+                                    <small class="text-muted d-block mb-2">
+                                        <strong>On:</strong> <%= discount.categoryOrProduct || discount.applicableOn %><br>
+                                        <strong>Valid:</strong> <%= new Date(discount.startDate).toLocaleDateString() %> - <%= new Date(discount.endDate).toLocaleDateString() %>
+                                    </small>
+                                    <div class="btn-group w-100" role="group">
+                                        <form action="/discount/toggle/<%= discount._id %>" method="POST" class="flex-fill">
+                                            <button type="submit" class="btn btn-sm btn-warning w-100">
+                                                <i class="bi bi-<%= discount.isActive ? 'pause' : 'play' %>-circle"></i>
+                                                <%= discount.isActive ? 'Deactivate' : 'Activate' %>
+                                            </button>
+                                        </form>
+                                        <form action="/discount/delete/<%= discount._id %>" method="POST" class="flex-fill ms-1"
+                                              onsubmit="return confirm('Delete this discount?')">
+                                            <button type="submit" class="btn btn-sm btn-danger w-100">
+                                                <i class="bi bi-trash"></i> Delete
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        <% }); %>
+                    </div>
+
+                    <!-- Desktop view -->
+                    <div class="table-responsive d-none d-md-block">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Select</th>
+                                    <th>Name</th>
+                                    <th>Type</th>
+                                    <th>Value</th>
+                                    <th>Applicable On</th>
+                                    <th>Valid From</th>
+                                    <th>Valid Until</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% discounts.forEach(discount => { %>
+                                    <tr>
+                                        <td>
+                                            <input type="radio" name="selectedDiscount" 
+                                                   id="discount_<%= discount._id %>"
+                                                   data-name="<%= discount.name %>"
+                                                   data-type="<%= discount.type %>"
+                                                   data-value="<%= discount.value %>"
+                                                   data-applicable="<%= discount.applicableOn %>"
+                                                   data-category="<%= discount.categoryOrProduct || discount.applicableOn %>"
+                                                   data-enddate="<%= discount.endDate %>"
+                                                   onchange="selectDiscount()">
+                                        </td>
+                                        <td><strong><%= discount.name %></strong></td>
+                                        <td>
+                                            <%= discount.type === 'percentage' ? 'Percentage' : 'Fixed Amount' %>
+                                        </td>
+                                        <td>
+                                            <strong>
+                                                <%= discount.type === 'percentage' ? discount.value + '%' : '₹' + discount.value %>
+                                            </strong>
+                                        </td>
+                                        <td>
+                                            <% if (discount.categoryOrProduct) { %>
+                                                <%= discount.categoryOrProduct %>
+                                            <% } else { %>
+                                                <%= discount.applicableOn.charAt(0).toUpperCase() + discount.applicableOn.slice(1) %>
+                                            <% } %>
+                                        </td>
+                                        <td><%= new Date(discount.startDate).toLocaleDateString() %></td>
+                                        <td><%= new Date(discount.endDate).toLocaleDateString() %></td>
+                                        <td>
+                                            <% if (discount.isActive) { %>
+                                                <span class="badge bg-success">Active</span>
+                                            <% } else { %>
+                                                <span class="badge bg-danger">Inactive</span>
+                                            <% } %>
+                                        </td>
+                                        <td>
+                                            <form action="/discount/toggle/<%= discount._id %>" method="POST" class="d-inline">
+                                                <button type="submit" class="btn btn-sm btn-warning">
+                                                    <i class="bi bi-<%= discount.isActive ? 'pause' : 'play' %>-circle"></i>
+                                                    <%= discount.isActive ? 'Deactivate' : 'Activate' %>
+                                                </button>
+                                            </form>
+                                            <form action="/discount/delete/<%= discount._id %>" method="POST" class="d-inline"
+                                                  onsubmit="return confirm('Delete this discount?')">
+                                                <button type="submit" class="btn btn-sm btn-danger">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                <% }); %>
+                            </tbody>
+                        </table>
+                    </div>
+                <% } %>
+            </div>
+        </div>
+
+        <!-- Customer Messaging Section - 100% FREE! -->
+        <% if (customers && customers.length > 0) { %>
+        <div class="card mt-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">
+                    <i class="bi bi-chat-dots"></i> Send Discount Messages to Customers (FREE!)
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <i class="bi bi-lightbulb-fill"></i> <strong>How it works:</strong>
+                    <ol class="mb-0 mt-2 small">
+                        <li>Select a <strong>discount</strong> from above</li>
+                        <li>Select <strong>customers</strong> below</li>
+                        <li>Click <strong>"Send via WhatsApp"</strong></li>
+                        <li>Message is pre-filled - Just hit Send! 🚀</li>
+                    </ol>
+                </div>
+
+                <div class="alert alert-warning" id="selectDiscountAlert" style="display: none;">
+                    <i class="bi bi-exclamation-triangle"></i> Please select a discount first!
+                </div>
+                
+                <!-- Mobile: Send buttons on top -->
+                <div class="d-md-none mb-3">
+                    <div class="card bg-light">
+                        <div class="card-body p-3">
+                            <h6 class="card-title">Selected: <span id="selectedCountMobile">0</span> customers</h6>
+                            <div id="selectedDiscountInfoMobile" style="display: none;" class="mb-2">
+                                <small class="text-muted">
+                                    <strong>Discount:</strong> <span id="discountNameDisplayMobile"></span>
+                                </small>
+                            </div>
+                            <button class="btn btn-success w-100 mb-2" onclick="openWhatsAppWithMessage()">
+                                <i class="bi bi-whatsapp"></i> Send via WhatsApp
+                            </button>
+                            <button class="btn btn-primary w-100" onclick="openSMSWithMessage()">
+                                <i class="bi bi-phone"></i> Send via SMS
+                            </button>
+                            <small class="text-success d-block mt-2 text-center">
+                                <i class="bi bi-check-circle"></i> Pre-filled message!
+                            </small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <div class="btn-group w-100" role="group">
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="selectAllMsg()">
+                            <i class="bi bi-check-all"></i> Select All
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="deselectAllMsg()">
+                            <i class="bi bi-x-circle"></i> Deselect All
+                        </button>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-12 col-md-8 mb-3 mb-md-0">
+                        <div style="max-height: 400px; overflow-y: auto; border: 1px solid #ddd; padding: 15px; border-radius: 8px;">
+                            <% customers.forEach((customer, index) => { %>
+                                <div class="form-check mb-3">
+                                    <input class="form-check-input customer-msg-checkbox" type="checkbox" 
+                                           value="<%= customer._id %>" id="msgCustomer<%= index %>"
+                                           data-phone="<%= customer._id %>"
+                                           style="width: 20px; height: 20px; margin-top: 0.25rem;">
+                                    <label class="form-check-label ms-2" for="msgCustomer<%= index %>" style="cursor: pointer;">
+                                        <strong class="d-block"><%= customer.name || 'Walk-in Customer' %></strong>
+                                        <span class="badge bg-info d-inline-block mb-1"><%= customer._id %></span>
+                                        <br>
+                                        <small class="text-muted">
+                                            Purchases: <%= customer.totalPurchases %> | 
+                                            Last: <%= new Date(customer.lastPurchase).toLocaleDateString('en-IN') %>
+                                        </small>
+                                    </label>
+                                </div>
+                            <% }); %>
+                        </div>
+                    </div>
+
+                    <div class="col-md-4 d-none d-md-block">
+                        <div class="card bg-light sticky-top" style="top: 20px;">
+                            <div class="card-body">
+                                <h6 class="card-title">Selected: <span id="selectedCount">0</span> customers</h6>
+                                <div id="selectedDiscountInfo" style="display: none;" class="mb-2">
+                                    <small class="text-muted">
+                                        <strong>Discount:</strong> <span id="discountNameDisplay"></span>
+                                    </small>
+                                </div>
+                                <hr>
+                                
+                                <button class="btn btn-success w-100 mb-2 py-2" onclick="openWhatsAppWithMessage()">
+                                    <i class="bi bi-whatsapp"></i> Send via WhatsApp
+                                </button>
+                                
+                                <button class="btn btn-primary w-100 py-2" onclick="openSMSWithMessage()">
+                                    <i class="bi bi-phone"></i> Send via SMS
+                                </button>
+
+                                <hr>
+                                <small class="text-success">
+                                    <i class="bi bi-check-circle"></i> <strong>Pre-filled message!</strong><br>
+                                    Just click Send in WhatsApp/SMS! 🎉
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <% } %>
+    </div>
+
+</div>
+<!-- End Main Content Wrapper -->
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function selectAllMsg() {
+            document.querySelectorAll('.customer-msg-checkbox').forEach(cb => cb.checked = true);
+            updateSelectedCount();
+        }
+
+        function deselectAllMsg() {
+            document.querySelectorAll('.customer-msg-checkbox').forEach(cb => cb.checked = false);
+            updateSelectedCount();
+        }
+
+        function updateSelectedCount() {
+            const count = document.querySelectorAll('.customer-msg-checkbox:checked').length;
+            if (document.getElementById('selectedCount')) {
+                document.getElementById('selectedCount').textContent = count;
+            }
+            if (document.getElementById('selectedCountMobile')) {
+                document.getElementById('selectedCountMobile').textContent = count;
+            }
+        }
+
+        let selectedDiscountData = null;
+
+        function selectDiscount() {
+            const selectedRadio = document.querySelector('input[name="selectedDiscount"]:checked');
+            if (selectedRadio) {
+                selectedDiscountData = {
+                    name: selectedRadio.dataset.name,
+                    type: selectedRadio.dataset.type,
+                    value: selectedRadio.dataset.value,
+                    category: selectedRadio.dataset.category,
+                    endDate: selectedRadio.dataset.enddate
+                };
+                
+                if (document.getElementById('selectedDiscountInfo')) {
+                    document.getElementById('selectedDiscountInfo').style.display = 'block';
+                    document.getElementById('discountNameDisplay').textContent = selectedDiscountData.name;
+                }
+                if (document.getElementById('selectedDiscountInfoMobile')) {
+                    document.getElementById('selectedDiscountInfoMobile').style.display = 'block';
+                    document.getElementById('discountNameDisplayMobile').textContent = selectedDiscountData.name;
+                }
+                if (document.getElementById('selectDiscountAlert')) {
+                    document.getElementById('selectDiscountAlert').style.display = 'none';
+                }
+            }
+        }
+
+        function createDiscountMessage(forWhatsApp = true) {
+            if (!selectedDiscountData) return '';
+            
+            const discountText = selectedDiscountData.type === 'percentage' 
+                ? `${selectedDiscountData.value}% OFF` 
+                : `Rs.${selectedDiscountData.value} OFF`;
+            
+            const validDate = new Date(selectedDiscountData.endDate).toLocaleDateString('en-IN');
+            
+            let message = '';
+            
+            if (forWhatsApp) {
+                // WhatsApp version - Direct emojis (works in WhatsApp)
+                message = `🎉 SPECIAL OFFER from Bireena Bakery! 🎉\n\n`;
+                message += `${selectedDiscountData.name.toUpperCase()}\n`;
+                message += `Get ${discountText} on ${selectedDiscountData.category}!\n`;
+                message += `Valid till: ${validDate}\n\n`;
+                message += `Visit us today and enjoy great savings! 🛍️`;
+            } else {
+                // SMS version - 100% Plain text (no emojis, no special chars)
+                message = `SPECIAL OFFER from Bireena Bakery!\n\n`;
+                message += `${selectedDiscountData.name.toUpperCase()}\n`;
+                message += `Get ${discountText} on ${selectedDiscountData.category}!\n`;
+                message += `Valid till: ${validDate}\n\n`;
+                message += `Visit us today and enjoy great savings!\n`;
+                message += `- Bireena Bakery`;
+            }
+            
+            return message;
+        }
+
+        // Update count on checkbox change
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('.customer-msg-checkbox').forEach(cb => {
+                cb.addEventListener('change', updateSelectedCount);
+            });
+        });
+
+        function openWhatsAppWithMessage() {
+            if (!selectedDiscountData) {
+                if (document.getElementById('selectDiscountAlert')) {
+                    document.getElementById('selectDiscountAlert').style.display = 'block';
+                }
+                alert('पहले discount select करें (table में radio button)!');
+                return;
+            }
+
+            const selectedCheckboxes = document.querySelectorAll('.customer-msg-checkbox:checked');
+            
+            if (selectedCheckboxes.length === 0) {
+                alert('कृपया कम से कम एक customer select करें!');
+                return;
+            }
+
+            const message = createDiscountMessage(true); // WhatsApp with emojis
+            const encodedMessage = encodeURIComponent(message);
+
+            selectedCheckboxes.forEach((checkbox, index) => {
+                const phone = checkbox.dataset.phone.replace(/\s/g, '');
+                const formattedPhone = phone.startsWith('+') ? phone.substring(1) : '91' + phone.replace(/^0+/, '');
+                
+                const whatsappUrl = `https://wa.me/${formattedPhone}?text=${encodedMessage}`;
+                
+                setTimeout(() => {
+                    window.open(whatsappUrl, '_blank');
+                }, index * 1000);
+            });
+
+            alert(`✅ WhatsApp खुल रहा है ${selectedCheckboxes.length} customer(s) के लिए!\n\n📝 Message पहले से लिखा हुआ है!\nबस Send button click करें! 🎉`);
+        }
+
+        function openWhatsApp() {
+            const selectedCheckboxes = document.querySelectorAll('.customer-msg-checkbox:checked');
+            
+            if (selectedCheckboxes.length === 0) {
+                alert('कृपया कम से कम एक customer select करें!');
+                return;
+            }
+
+            selectedCheckboxes.forEach((checkbox, index) => {
+                const phone = checkbox.dataset.phone.replace(/\s/g, '');
+                const formattedPhone = phone.startsWith('+') ? phone.substring(1) : '91' + phone.replace(/^0+/, '');
+                
+                const whatsappUrl = `https://wa.me/${formattedPhone}`;
+                
+                setTimeout(() => {
+                    window.open(whatsappUrl, '_blank');
+                }, index * 500);
+            });
+
+            alert(`WhatsApp खुल रहा है ${selectedCheckboxes.length} customer(s) के लिए!\n\nअब आप manually message type करके send कर सकते हो! 🎉`);
+        }
+
+        function openSMSWithMessage() {
+            if (!selectedDiscountData) {
+                if (document.getElementById('selectDiscountAlert')) {
+                    document.getElementById('selectDiscountAlert').style.display = 'block';
+                }
+                alert('पहले discount select करें (table में radio button)!');
+                return;
+            }
+
+            const selectedCheckboxes = document.querySelectorAll('.customer-msg-checkbox:checked');
+            
+            if (selectedCheckboxes.length === 0) {
+                alert('कृपया कम से कम एक customer select करें!');
+                return;
+            }
+
+            const phoneNumbers = Array.from(selectedCheckboxes).map(cb => {
+                const phone = cb.dataset.phone.replace(/\s/g, '');
+                return phone.startsWith('+91') ? phone.substring(3) : phone.replace(/^0+/, '');
+            });
+
+            const message = createDiscountMessage(false); // SMS without emojis
+            const smsUrl = `sms:${phoneNumbers.join(',')}?body=${encodeURIComponent(message)}`;
+            window.location.href = smsUrl;
+
+            alert(`✅ SMS app खुल रहा है ${phoneNumbers.length} customer(s) के लिए!\n\n📝 Message पहले से लिखा हुआ है!\nबस Send button click करें! 📱`);
+        }
+
+        function openSMS() {
+            const selectedCheckboxes = document.querySelectorAll('.customer-msg-checkbox:checked');
+            
+            if (selectedCheckboxes.length === 0) {
+                alert('कृपया कम से कम एक customer select करें!');
+                return;
+            }
+
+            const phoneNumbers = Array.from(selectedCheckboxes).map(cb => {
+                const phone = cb.dataset.phone.replace(/\s/g, '');
+                return phone.startsWith('+91') ? phone.substring(3) : phone.replace(/^0+/, '');
+            });
+
+            const smsUrl = `sms:${phoneNumbers.join(',')}`;
+            window.location.href = smsUrl;
+
+            alert(`SMS app खुल रहा है ${phoneNumbers.length} customer(s) के लिए!\n\nअब आप manually message type करके send कर सकते हो! 📱`);
+        }
+    </script>
+</body>
+</html>

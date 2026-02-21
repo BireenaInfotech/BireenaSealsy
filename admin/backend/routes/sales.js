@@ -1,0 +1,1118 @@
+const express = require('express');
+const router = express.Router();
+const { isAuthenticated, getAdminId } = require('../middleware/auth');
+const Sale = require('../models/Sale');
+const Product = require('../models/Product');
+const User = require('../models/User');
+const { sendBillSMS } = require('../utils/sms');
+const { trackProductSale } = require('../utils/inventory-tracker');
+const { calculateItemGST, calculateTotalGST, getGSTSettings, isInterStateTransaction, extractStateCodeFromGSTIN } = require('../utils/gst-calculator');
+
+// View all sales
+router.get('/', isAuthenticated, async (req, res) => {
+    try {
+        const adminId = getAdminId(req);
+        let filter = { adminId };
+        
+        // Admin sees all sales, Employee sees only their own sales
+        if (req.session.user.role === 'staff') {
+            filter.createdBy = req.session.user.id;
+        }
+        
+        const sales = await Sale.find(filter)
+            .sort({ createdAt: -1 })
+            .populate('items.product')
+            .populate('createdBy', 'fullName username role branch');
+        
+        // Group sales by admin and employees
+        const adminSales = sales.filter(sale => sale.createdBy && sale.createdBy.role === 'admin');
+        const employeeSales = sales.filter(sale => sale.createdBy && sale.createdBy.role === 'staff');
+        
+        // Group EMPLOYEE sales by branch (exclude admin sales)
+        const salesByBranch = {};
+        const branchTotals = {};
+        
+        employeeSales.forEach(sale => {
+            const branch = sale.branch || 'Main Branch';
+            if (!salesByBranch[branch]) {
+                salesByBranch[branch] = [];
+                branchTotals[branch] = { count: 0, total: 0 };
+            }
+            salesByBranch[branch].push(sale);
+            branchTotals[branch].count++;
+            branchTotals[branch].total += sale.total;
+        });
+        
+        res.render('sales/list', { 
+            sales,
+            adminSales,
+            employeeSales,
+            salesByBranch,
+            branchTotals,
+            user: req.session.user,
+            page: 'sales'
+        });
+    } catch (error) {
+        console.error('Sales error:', error);
+        req.flash('error_msg', 'Error loading sales');
+        res.redirect('/dashboard');
+    }
+});
+
+// New sale page
+router.get('/new', isAuthenticated, async (req, res) => {
+    try {
+        const adminId = getAdminId(req);
+        // Include products with stock > 0 OR trackStock is false (made to order)
+        let filter = { 
+            $or: [
+                { stock: { $gt: 0 } },
+                { trackStock: false }
+            ],
+            adminId 
+        };
+
+        let employees = [];
+        let selectedEmployeeId = null;
+        let adminUser = null;
+
+        if (req.session.user.role === 'admin') {
+            // Fetch all staff under this admin for the filter dropdown
+            employees = await User.find({ adminId: adminId, role: 'staff' })
+                .select('_id fullName username branch').lean();
+
+            const empParam = req.query.employee; // 'self' | 'all' | <userId>
+
+            if (!empParam || empParam === 'self') {
+                // Default: admin's own products
+                filter.addedBy = req.session.user.id;
+                selectedEmployeeId = 'self';
+            } else if (empParam === 'all') {
+                // No addedBy filter → every product of this shop
+                selectedEmployeeId = 'all';
+            } else {
+                // Specific employee
+                filter.addedBy = empParam;
+                selectedEmployeeId = empParam;
+            }
+        } else {
+            // Staff: can see admin's products or their own
+            // Fetch admin info
+            adminUser = await User.findOne({ _id: adminId, role: 'admin' })
+                .select('_id fullName username').lean();
+            
+            const empParam = req.query.employee; // 'admin' | 'self'
+            
+            if (!empParam || empParam === 'admin') {
+                // Default: admin's products
+                filter.addedBy = adminId;
+                selectedEmployeeId = 'admin';
+            } else if (empParam === 'self') {
+                // Staff's own products
+                filter.addedBy = req.session.user.id;
+                selectedEmployeeId = 'self';
+            }
+        }
+
+        const products = await Product.find(filter).sort({ name: 1 });
+        console.log(`[POS] Loaded ${products.length} products for user: ${req.session.user.username} (filter: ${selectedEmployeeId || 'unknown'})`);
+
+        // Pass GST settings so frontend can show GST-inclusive totals in B2B mode
+        const gstSettings = await getGSTSettings();
+
+        res.render('sales/new', {
+            products,
+            user: req.session.user,
+            employees,
+            adminUser,
+            selectedEmployeeId: selectedEmployeeId || 'admin',
+            gstSettings: {
+                enableGST: gstSettings.enableGST || false,
+                defaultCGSTRate: gstSettings.defaultCGSTRate || 0,
+                defaultSGSTRate: gstSettings.defaultSGSTRate || 0,
+                defaultIGSTRate: gstSettings.defaultIGSTRate || 0
+            }
+        });
+    } catch (error) {
+        console.error('New sale error:', error);
+        req.flash('error_msg', 'Error loading products');
+        res.redirect('/sales');
+    }
+});
+
+// API endpoint to fetch current GST rates (for real-time calculation)
+router.get('/api/gst-rates', isAuthenticated, async (req, res) => {
+    try {
+        const gstSettings = await getGSTSettings();
+        res.json({
+            success: true,
+            enableGST: gstSettings.enableGST || false,
+            defaultCGSTRate: gstSettings.defaultCGSTRate || 0,
+            defaultSGSTRate: gstSettings.defaultSGSTRate || 0,
+            defaultIGSTRate: gstSettings.defaultIGSTRate || 0
+        });
+    } catch (error) {
+        console.error('GST rates fetch error:', error);
+        res.json({ success: false, error: 'Failed to fetch GST rates' });
+    }
+});
+
+// Create sale - All calculations done on backend for security
+router.post('/create', isAuthenticated, async (req, res) => {
+    try {
+        const { 
+            items, 
+            customerName, 
+            customerPhone, 
+            customerAddress,
+            customerType,
+            customerGSTIN,
+            placeOfSupply,
+            paymentMethod, 
+            discount, 
+            discountType, 
+            amountPaid 
+        } = req.body;
+
+        const adminId = getAdminId(req);
+
+        // Validation
+        if (!items || items.length === 0) {
+            req.flash('error_msg', 'No items in cart');
+            return res.redirect('/sales/new');
+        }
+
+        // Get GST settings
+        const gstSettings = await getGSTSettings();
+        
+        // Determine customer type (default B2C for backward compatibility)
+        const custType = customerType || 'B2C';
+        const custGSTIN = (custType === 'B2B' && customerGSTIN) ? customerGSTIN.toUpperCase().trim() : '';
+        
+        // Determine if inter-state transaction
+        let isInterState = false;
+        if (custType === 'B2B' && custGSTIN && gstSettings.gstin) {
+            const sellerState = extractStateCodeFromGSTIN(gstSettings.gstin);
+            const buyerState = extractStateCodeFromGSTIN(custGSTIN);
+            isInterState = isInterStateTransaction(sellerState, buyerState);
+        }
+
+        // Parse items (from frontend cart)
+        const parsedItems = JSON.parse(items);
+        
+        // **BACKEND SECURITY: Validate and recalculate everything**
+        const saleItems = [];
+        let subtotal = 0;
+
+        for (const item of parsedItems) {
+            // Fetch fresh product data from database (don't trust frontend prices)
+            const product = await Product.findOne({ _id: item.productId, adminId });
+            
+            if (!product) {
+                throw new Error(`Product not found or access denied: ${item.productId}`);
+            }
+            
+            // Validate quantity (use parseFloat for decimal quantities like 0.5 kg)
+            const quantity = parseFloat(item.quantity);
+            if (isNaN(quantity) || quantity <= 0) {
+                throw new Error(`Invalid quantity for ${product.name}`);
+            }
+            
+            // Check stock availability (skip for made-to-order items)
+            if (product.trackStock !== false && product.stock < quantity) {
+                throw new Error(`Insufficient stock for ${product.name}. Available: ${product.stock}`);
+            }
+
+            // **SECURITY: Use database price, validate cake pricing**
+            let actualPrice = parseFloat(product.price);
+            
+            // For cake products, validate and use the calculated price from frontend
+            if (item.isCake && item.price) {
+                const frontendPrice = parseFloat(item.price);
+                // Validate that frontend price matches one of the cake prices
+                // Half kg rate: halfKgPrice / 0.5, One kg rate: oneKgPrice / 1, Pastry: direct price (per piece)
+                const halfKgRate = product.halfKgPrice ? product.halfKgPrice / 0.5 : 0;
+                const oneKgRate = product.oneKgPrice ? product.oneKgPrice / 1 : 0;
+                const pastryPrice = product.pastryPrice || 0; // Direct price per piece
+                
+                if (Math.abs(frontendPrice - halfKgRate) < 0.01 || 
+                    Math.abs(frontendPrice - oneKgRate) < 0.01 || 
+                    Math.abs(frontendPrice - pastryPrice) < 0.01) {
+                    actualPrice = frontendPrice;
+                } else {
+                    throw new Error(`Invalid price for cake ${product.name}`);
+                }
+            }
+            const itemBaseAmount = actualPrice * quantity;
+            
+            // **PER-ITEM DISCOUNT CALCULATION**
+            let itemDiscount = 0;
+            const itemDiscountValue = parseFloat(item.discount) || 0;
+            const itemDiscountType = item.discountType || 'fixed';
+            
+            if (itemDiscountValue > 0) {
+                if (itemDiscountType === 'percentage') {
+                    if (itemDiscountValue > 100) {
+                        throw new Error(`Discount percentage for ${product.name} cannot exceed 100%`);
+                    }
+                    itemDiscount = (itemBaseAmount * itemDiscountValue) / 100;
+                } else {
+                    if (itemDiscountValue > itemBaseAmount) {
+                        throw new Error(`Discount for ${product.name} cannot exceed item price`);
+                    }
+                    itemDiscount = itemDiscountValue;
+                }
+            }
+            
+            const itemSubtotal = itemBaseAmount - itemDiscount;
+            
+            // **GST CALCULATION for each item**
+            let gstData = {
+                hsnCode: gstSettings.defaultHSNCode,
+                taxableAmount: itemSubtotal,
+                cgstRate: 0,
+                cgstAmount: 0,
+                sgstRate: 0,
+                sgstAmount: 0,
+                igstRate: 0,
+                igstAmount: 0
+            };
+            
+            // Calculate GST if enabled AND customer type is B2B
+            if (gstSettings.enableGST && custType === 'B2B') {
+                const gstCalc = calculateItemGST(
+                    itemSubtotal,
+                    isInterState,
+                    gstSettings.defaultCGSTRate,
+                    gstSettings.defaultSGSTRate,
+                    gstSettings.defaultIGSTRate
+                );
+                gstData = { ...gstData, ...gstCalc };
+            }
+            
+            saleItems.push({
+                product: product._id,
+                productName: product.name,
+                quantity: quantity,
+                price: actualPrice,
+                subtotal: itemSubtotal,
+                itemDiscount: itemDiscount,
+                itemDiscountType: itemDiscountType,
+                itemDiscountValue: itemDiscountValue,
+                ...gstData
+            });
+            
+            subtotal += itemSubtotal;
+
+            // Update product stock only if tracking is enabled
+            if (product.trackStock !== false) {
+                product.stock -= quantity;
+                await product.save();
+                
+                // 🎯 Track in daily inventory report
+                await trackProductSale(product._id, quantity, product.name, product.unit, product.category, getAdminId(req));
+            }
+        }
+
+        // **BACKEND CALCULATION: Discount**
+        let discountAmount = 0;
+        const discountValue = parseFloat(discount) || 0;
+        
+        if (discountValue > 0) {
+            if (discountType === 'percentage') {
+                // Validate percentage (0-100)
+                if (discountValue > 100) {
+                    throw new Error('Discount percentage cannot exceed 100%');
+                }
+                discountAmount = (subtotal * discountValue) / 100;
+            } else {
+                // Fixed amount discount
+                if (discountValue > subtotal) {
+                    throw new Error('Discount amount cannot exceed subtotal');
+                }
+                discountAmount = discountValue;
+            }
+        }
+
+        // **CALCULATE TOTAL GST**
+        const gstTotals = calculateTotalGST(saleItems);
+
+        // **BACKEND CALCULATION: Total (subtotal - discount + GST)**
+        // GST added for all B2B customers regardless of GSTIN
+        const gstToAdd = (gstSettings.enableGST && custType === 'B2B') ? gstTotals.totalGST : 0;
+        // Round to 2 decimal places to avoid floating-point precision errors
+        const total = parseFloat((subtotal - discountAmount + gstToAdd).toFixed(2));
+        
+        console.log(`[GST CALC] custType=${custType}, enableGST=${gstSettings.enableGST}, subtotal=${subtotal}, discount=${discountAmount}, gstToAdd=${gstToAdd}, total=${total}, rates: CGST=${gstSettings.defaultCGSTRate}% SGST=${gstSettings.defaultSGSTRate}%`);
+        
+        // **BACKEND CALCULATION: Payment status**
+        const paidAmount = parseFloat((parseFloat(amountPaid) || 0).toFixed(2));
+        
+        // **SECURITY: Validate paid amount - cannot exceed total**
+        if (paidAmount < 0) {
+            throw new Error('Paid amount cannot be negative');
+        }
+        
+        if (paidAmount > total + 0.01) {
+            throw new Error(`Paid amount (₹${paidAmount.toFixed(2)}) cannot exceed total bill amount (₹${total.toFixed(2)})`);
+        }
+        
+        const due = parseFloat(Math.max(0, total - paidAmount).toFixed(2));
+        
+        let paymentStatus = 'paid';
+        if (due > 0) {
+            paymentStatus = paidAmount > 0 ? 'partial' : 'due';
+        }
+        
+        // Security log
+        console.log(`[PAYMENT] User: ${req.session.user.username}, Bill: BILL-XXXX, Amount: ${total}, Paid: ${paidAmount}, Due: ${due}`);
+
+        // Generate bill number
+        const lastSale = await Sale.findOne().sort({ createdAt: -1 });
+        let billNumber = 'BILL-0001';
+        if (lastSale) {
+            const lastNumber = parseInt(lastSale.billNumber.split('-')[1]);
+            billNumber = `BILL-${String(lastNumber + 1).padStart(4, '0')}`;
+        }
+
+        // Create sale (adminId already declared at top)
+        const sale = new Sale({
+            billNumber,
+            items: saleItems,
+            subtotal,
+            discount: discountAmount,
+            discountType,
+            total,
+            amountPaid: paidAmount,
+            dueAmount: due,
+            paymentStatus,
+            customerName: customerName && customerName.trim() !== '' ? customerName : 'N/A',
+            customerPhone: customerPhone || '',
+            customerAddress: customerAddress || '',
+            customerType: custType,
+            customerGSTIN: custGSTIN,
+            placeOfSupply: placeOfSupply || '',
+            isInterState: isInterState,
+            totalTaxableAmount: gstTotals.totalTaxableAmount,
+            totalCGST: gstTotals.totalCGST,
+            totalSGST: gstTotals.totalSGST,
+            totalIGST: gstTotals.totalIGST,
+            totalGST: gstTotals.totalGST,
+            paymentMethod: paymentMethod || 'cash',
+            branch: req.session.user.branch || 'Main Branch',
+            adminId: adminId,
+            createdBy: req.session.user.id,
+            paymentHistory: paidAmount > 0 ? [{
+                amount: paidAmount,
+                date: new Date(),
+                method: paymentMethod || 'cash',
+                receivedBy: req.session.user.id
+            }] : []
+        });
+
+        await sale.save();
+
+        // Send SMS if phone number provided
+        if (customerPhone && customerPhone.trim() !== '') {
+            const smsResult = await sendBillSMS(customerPhone, {
+                billNumber,
+                customerName: customerName && customerName.trim() !== '' ? customerName : 'N/A',
+                items: saleItems,
+                subtotal,
+                discountAmount,
+                total,
+                paymentMethod: paymentMethod || 'cash'
+            });
+
+            if (smsResult.success) {
+                sale.smsSent = true;
+                await sale.save();
+            }
+        }
+
+        // Check if request is JSON (AJAX)
+        if (req.headers['content-type'] && req.headers['content-type'].includes('application/json')) {
+            return res.json({
+                success: true,
+                message: 'Sale completed successfully',
+                billId: sale._id,
+                billNumber: sale.billNumber
+            });
+        }
+
+        req.flash('success_msg', 'Sale completed successfully');
+        // Redirect directly to print page instead of bill view
+        res.redirect(`/bill/print/${sale._id}`);
+    } catch (error) {
+        console.error('Create sale error:', error);
+        console.error('Error stack:', error.stack);
+        
+        // Check if request is JSON (AJAX)
+        if (req.headers['content-type'] && req.headers['content-type'].includes('application/json')) {
+            return res.json({
+                success: false,
+                error: error.message || 'Error creating sale'
+            });
+        }
+        
+        req.flash('error_msg', error.message || 'Error creating sale');
+        res.redirect('/sales/new');
+    }
+});
+
+// API endpoint to get available products (MUST be before /:id route)
+router.get('/api/products', isAuthenticated, async (req, res) => {
+    try {
+        console.log('=== API Products Request ===');
+        console.log('User role:', req.session.user.role);
+        console.log('User ID:', req.session.user.id);
+        
+        const adminId = getAdminId(req);
+        let filter = {
+            stock: { $gt: 0 },
+            adminId: adminId
+        };
+        
+        console.log('User - showing only own products');
+        console.log('Query filter:', JSON.stringify(filter));
+        
+        const products = await Product.find(filter)
+            .select('name price stock category unit')
+            .sort({ name: 1 })
+            .lean();
+        
+        console.log(`Found ${products.length} products`);
+        if (products.length > 0) {
+            console.log('Sample product:', products[0]);
+        }
+        
+        res.json({
+            success: true,
+            products: products,
+            count: products.length
+        });
+    } catch (error) {
+        console.error('=== Get products API error ===');
+        console.error('Error:', error);
+        console.error('Stack:', error.stack);
+        res.status(500).json({
+            success: false,
+            message: 'Error fetching products',
+            error: error.message
+        });
+    }
+});
+
+// Export sales history as CSV (MUST be before /:id route)
+router.get('/export-csv', isAuthenticated, async (req, res) => {
+    try {
+        const { filter: filterType } = req.query;
+        
+        const adminId = getAdminId(req);
+        let filter = { adminId };
+        
+        // Base filter based on role
+        if (req.session.user.role === 'staff') {
+            filter.createdBy = req.session.user.id;
+        }
+        
+        const sales = await Sale.find(filter)
+            .sort({ createdAt: -1 })
+            .populate('items.product')
+            .populate('createdBy', 'fullName username role branch');
+        
+        // Apply additional filters
+        let filteredSales = sales;
+        
+        if (filterType === 'admin') {
+            filteredSales = sales.filter(sale => sale.createdBy && sale.createdBy.role === 'admin');
+        } else if (filterType === 'employees') {
+            filteredSales = sales.filter(sale => sale.createdBy && sale.createdBy.role === 'staff');
+        } else if (filterType === 'branch' && branch) {
+            filteredSales = sales.filter(sale => sale.createdBy && sale.createdBy.branch === branch);
+        }
+        
+        // Create CSV content
+        let csvContent = '\uFEFF'; // UTF-8 BOM
+        
+        csvContent += 'BIREENA BAKERY - SALES HISTORY\n';
+        csvContent += '==============================\n';
+        csvContent += `Report Generated: ${new Date().toLocaleString('en-IN')}\n`;
+        csvContent += `Total Sales: ${filteredSales.length}\n`;
+        
+        if (filterType === 'admin') {
+            csvContent += 'Filter: Admin Sales Only\n';
+        } else if (filterType === 'employees') {
+            csvContent += 'Filter: Employee Sales Only\n';
+        } else if (filterType === 'branch' && branch) {
+            csvContent += `Filter: ${branch} Branch\n`;
+        } else {
+            csvContent += 'Filter: All Sales\n';
+        }
+        
+        csvContent += '\n';
+        
+        // Calculate overall totals
+        const totalRevenue = filteredSales.reduce((sum, sale) => sum + sale.total, 0);
+        const totalPaid = filteredSales.reduce((sum, sale) => sum + sale.amountPaid, 0);
+        const totalDue = filteredSales.reduce((sum, sale) => sum + sale.dueAmount, 0);
+        const totalDiscount = filteredSales.reduce((sum, sale) => sum + sale.discount, 0);
+        
+        csvContent += 'OVERALL SUMMARY\n';
+        csvContent += `Total Revenue: ₹${totalRevenue.toFixed(2)}\n`;
+        csvContent += `Total Paid: ₹${totalPaid.toFixed(2)}\n`;
+        csvContent += `Total Due: ₹${totalDue.toFixed(2)}\n`;
+        csvContent += `Total Discount: ₹${totalDiscount.toFixed(2)}\n`;
+        csvContent += '\n';
+        
+        // Sales table header
+        csvContent += 'Bill #,Date,Time,Customer,Phone No,Employee,Items,Actual Amount,Discount,Total,Paid,Due,Refunded,Payment Status\n';
+        
+        // Sales data
+        filteredSales.forEach(sale => {
+            const date = new Date(sale.createdAt).toLocaleDateString('en-IN');
+            const time = new Date(sale.createdAt).toLocaleTimeString('en-IN');
+            const customer = sale.customerName || 'N/A';
+            const phone = sale.customerPhone || 'N/A';
+            const employee = sale.createdBy ? (sale.createdBy.fullName || sale.createdBy.username) : 'Unknown';
+            const employeeRole = sale.createdBy ? sale.createdBy.role.toUpperCase() : '';
+            const itemsCount = sale.items.length;
+            const actualAmount = sale.subtotal;
+            const discount = sale.discount;
+            const total = sale.total;
+            const paid = sale.amountPaid;
+            const due = sale.dueAmount;
+            const refunded = sale.refundedAmount || 0;
+            const paymentStatus = sale.paymentStatus.toUpperCase();
+            
+            csvContent += `"${sale.billNumber}","${date}","${time}","${customer}","${phone}","${employee} (${employeeRole})",${itemsCount},₹${actualAmount.toFixed(2)},₹${discount.toFixed(2)},₹${total.toFixed(2)},₹${paid.toFixed(2)},₹${due.toFixed(2)},₹${refunded.toFixed(2)},"${paymentStatus}"\n`;
+            
+            // Add item details
+            sale.items.forEach(item => {
+                const productName = item.productName || (item.product ? item.product.name : 'Unknown');
+                csvContent += `,"  - ${productName}",,,,,${item.quantity},₹${item.price.toFixed(2)},,,₹${item.subtotal.toFixed(2)},,,,\n`;
+            });
+        });
+        
+        csvContent += '\n==============================\n';
+        csvContent += 'Report End\n';
+        
+        // Set headers for CSV download
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+        res.setHeader('Content-Disposition', `attachment; filename="Sales_History_${new Date().toISOString().split('T')[0]}.csv"`);
+        
+        res.send(csvContent);
+        
+    } catch (error) {
+        console.error('Sales CSV export error:', error);
+        req.flash('error_msg', 'Error exporting sales history');
+        res.redirect('/sales');
+    }
+});
+
+// View sale details
+router.get('/:id', isAuthenticated, async (req, res) => {
+    try {
+        const adminId = getAdminId(req);
+        let filter = { _id: req.params.id, adminId };
+        
+        // If user is employee (staff), only allow access to their own sales
+        if (req.session.user.role === 'staff') {
+            filter.createdBy = req.session.user.id;
+        }
+        
+        const sale = await Sale.findOne(filter).populate('items.product');
+        if (!sale) {
+            req.flash('error_msg', 'Sale not found or access denied');
+            return res.redirect('/sales');
+        }
+        res.render('sales/view', { sale });
+    } catch (error) {
+        console.error('View sale error:', error);
+        req.flash('error_msg', 'Error loading sale');
+        res.redirect('/sales');
+    }
+});
+
+// Clear due payment
+router.post('/clear-due/:id', isAuthenticated, async (req, res) => {
+    try {
+        const { paymentAmount } = req.body;
+        
+        const adminId = getAdminId(req);
+        let filter = { _id: req.params.id, adminId };
+        
+        // If user is employee (staff), only allow access to their own sales
+        if (req.session.user.role === 'staff') {
+            filter.createdBy = req.session.user.id;
+        }
+        
+        const sale = await Sale.findOne(filter);
+        
+        if (!sale) {
+            req.flash('error_msg', 'Sale not found or access denied');
+            return res.redirect('/sales');
+        }
+
+        if (sale.paymentStatus === 'paid') {
+            req.flash('error_msg', 'This bill is already fully paid');
+            return res.redirect(`/bill/${sale._id}`);
+        }
+
+        // **BACKEND VALIDATION: Payment amount**
+        const amount = parseFloat(paymentAmount);
+        if (isNaN(amount) || amount <= 0) {
+            req.flash('error_msg', 'Invalid payment amount');
+            return res.redirect(`/bill/${sale._id}`);
+        }
+
+        if (amount > sale.dueAmount) {
+            req.flash('error_msg', 'Payment amount cannot exceed due amount');
+            return res.redirect(`/bill/${sale._id}`);
+        }
+
+        // **BACKEND CALCULATION: Update payment details**
+        sale.amountPaid += amount;
+        sale.dueAmount -= amount;
+
+        // **BACKEND CALCULATION: Update payment status**
+        if (sale.dueAmount === 0) {
+            sale.paymentStatus = 'paid';
+        } else if (sale.dueAmount > 0 && sale.amountPaid > 0) {
+            sale.paymentStatus = 'partial';
+        }
+
+        // Add payment history with security log
+        if (!sale.paymentHistory) {
+            sale.paymentHistory = [];
+        }
+        sale.paymentHistory.push({
+            amount: amount,
+            date: new Date(),
+            method: req.body.paymentMethod || 'cash',
+            receivedBy: req.session.user.id
+        });
+
+        await sale.save();
+
+        // Security log
+        console.log(`[PAYMENT] User: ${req.session.user.username}, Bill: ${sale.billNumber}, Amount: ${amount}, Remaining: ${sale.dueAmount}`);
+
+        req.flash('success_msg', `Payment of ₹${amount.toFixed(2)} received successfully. Remaining due: ₹${sale.dueAmount.toFixed(2)}`);
+        res.redirect(`/bill/${sale._id}`);
+    } catch (error) {
+        console.error('Clear due error:', error);
+        req.flash('error_msg', 'Error processing payment');
+        res.redirect('/sales');
+    }
+});
+
+// **SECURITY API: Validate product prices from backend**
+router.post('/api/validate-cart', isAuthenticated, async (req, res) => {
+    try {
+        const { items } = req.body;
+        
+        if (!items || !Array.isArray(items)) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Invalid cart data' 
+            });
+        }
+
+        const adminId = getAdminId(req);
+        const validatedItems = [];
+        let subtotal = 0;
+
+        for (const item of items) {
+            const product = await Product.findOne({ _id: item.productId, adminId });
+            
+            if (!product) {
+                return res.status(400).json({ 
+                    success: false, 
+                    message: `Product not found or access denied: ${item.productId}` 
+                });
+            }
+
+            // Check stock
+            if (product.stock < item.quantity) {
+                return res.status(400).json({ 
+                    success: false, 
+                    message: `Insufficient stock for ${product.name}. Available: ${product.stock}` 
+                });
+            }
+
+            // Return actual backend price
+            const actualPrice = parseFloat(product.price);
+            const itemSubtotal = actualPrice * item.quantity;
+
+            validatedItems.push({
+                productId: product._id,
+                productName: product.name,
+                quantity: item.quantity,
+                price: actualPrice,  // Backend price
+                subtotal: itemSubtotal,
+                stock: product.stock
+            });
+
+            subtotal += itemSubtotal;
+        }
+
+        res.json({
+            success: true,
+            items: validatedItems,
+            subtotal: subtotal
+        });
+
+    } catch (error) {
+        console.error('Cart validation error:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Server error during validation' 
+        });
+    }
+});
+
+// **SECURITY API: Calculate total with discount (backend calculation)**
+router.post('/api/calculate-total', isAuthenticated, async (req, res) => {
+    try {
+        const { subtotal, discount, discountType, customerType, customerGSTIN } = req.body;
+
+        const sub = parseFloat(subtotal) || 0;
+        const disc = parseFloat(discount) || 0;
+        let discountAmount = 0;
+
+        if (disc > 0) {
+            if (discountType === 'percentage') {
+                if (disc > 100) {
+                    return res.status(400).json({ 
+                        success: false, 
+                        message: 'Discount percentage cannot exceed 100%' 
+                    });
+                }
+                discountAmount = (sub * disc) / 100;
+            } else {
+                if (disc > sub) {
+                    return res.status(400).json({ 
+                        success: false, 
+                        message: 'Discount amount cannot exceed subtotal' 
+                    });
+                }
+                discountAmount = disc;
+            }
+        }
+
+        let total = sub - discountAmount;
+        let gstAmount = 0;
+        let cgst = 0;
+        let sgst = 0;
+        let igst = 0;
+
+        // Calculate GST if B2B customer
+        if (customerType === 'B2B' && customerGSTIN && customerGSTIN.length >= 2) {
+            try {
+                const gstSettings = await getGSTSettings();
+                if (gstSettings && gstSettings.enableGST) {
+                    const customerStateCode = customerGSTIN.substring(0, 2);
+                    const shopStateCode = gstSettings.stateCode;
+                    const isInterState = (customerStateCode !== shopStateCode);
+
+                    const taxableAmount = total;
+
+                    if (isInterState) {
+                        // IGST for inter-state
+                        const igstRate = gstSettings.defaultIGSTRate || 5;
+                        igst = (taxableAmount * igstRate) / 100;
+                        gstAmount = igst;
+                    } else {
+                        // CGST + SGST for intra-state
+                        const cgstRate = gstSettings.defaultCGSTRate || 2.5;
+                        const sgstRate = gstSettings.defaultSGSTRate || 2.5;
+                        cgst = (taxableAmount * cgstRate) / 100;
+                        sgst = (taxableAmount * sgstRate) / 100;
+                        gstAmount = cgst + sgst;
+                    }
+
+                    total = taxableAmount + gstAmount;
+                }
+            } catch (gstError) {
+                console.error('GST calculation error:', gstError);
+                // Continue without GST if error
+            }
+        }
+
+        res.json({
+            success: true,
+            subtotal: sub,
+            discountAmount: discountAmount,
+            taxableAmount: total - gstAmount,
+            cgst: cgst,
+            sgst: sgst,
+            igst: igst,
+            gstAmount: gstAmount,
+            total: total,
+            hasGST: gstAmount > 0
+        });
+
+    } catch (error) {
+        console.error('Calculate total error:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Server error during calculation' 
+        });
+    }
+});
+
+// Cancel sale page
+router.get('/cancel/:id', isAuthenticated, async (req, res) => {
+    try {
+        const adminId = getAdminId(req);
+        let filter = { _id: req.params.id, adminId };
+        
+        // Staff can only cancel their own sales
+        if (req.session.user.role === 'staff') {
+            filter.createdBy = req.session.user.id;
+        }
+        
+        const sale = await Sale.findOne(filter)
+            .populate('items.product')
+            .populate('createdBy', 'fullName username');
+        
+        if (!sale) {
+            req.flash('error_msg', 'Sale not found');
+            return res.redirect('/sales');
+        }
+        
+        if (sale.isCancelled) {
+            req.flash('error_msg', 'Sale is already cancelled');
+            return res.redirect('/bill/' + sale._id);
+        }
+        
+        res.render('sales/cancel', { sale });
+    } catch (error) {
+        console.error('Cancel sale page error:', error);
+        req.flash('error_msg', 'Error loading cancellation page');
+        res.redirect('/sales');
+    }
+});
+
+// Process sale cancellation
+router.post('/cancel/:id', isAuthenticated, async (req, res) => {
+    try {
+        const { cancellationReason, refundAmount, refundMethod, refundNotes } = req.body;
+        
+        const adminId = getAdminId(req);
+        let filter = { _id: req.params.id, adminId };
+        
+        // Staff can only cancel their own sales
+        if (req.session.user.role === 'staff') {
+            filter.createdBy = req.session.user.id;
+        }
+        
+        const sale = await Sale.findOne(filter).populate('items.product');
+        
+        if (!sale) {
+            req.flash('error_msg', 'Sale not found');
+            return res.redirect('/sales');
+        }
+        
+        if (sale.isCancelled) {
+            req.flash('error_msg', 'Sale is already cancelled');
+            return res.redirect('/bill/' + sale._id);
+        }
+        
+        // Validate refund amount
+        const refundAmt = parseFloat(refundAmount) || 0;
+        if (refundAmt < 0 || refundAmt > sale.amountPaid) {
+            req.flash('error_msg', `Refund amount cannot exceed paid amount of ₹${sale.amountPaid.toFixed(2)}`);
+            return res.redirect(`/sales/cancel/${sale._id}`);
+        }
+        
+        // Restore inventory for all items
+        for (const item of sale.items) {
+            const product = await Product.findOne({ _id: item.product, adminId });
+            if (product) {
+                product.stock += item.quantity;
+                await product.save();
+            }
+        }
+        
+        // Update sale with cancellation details
+        sale.isCancelled = true;
+        sale.cancelledAt = new Date();
+        sale.cancelledBy = req.session.user.id;
+        sale.cancellationReason = cancellationReason || 'No reason provided';
+        sale.refundAmount = refundAmt;
+        sale.refundMethod = refundMethod || 'none';
+        sale.refundProcessedBy = req.session.user.id;
+        sale.refundNotes = refundNotes || '';
+        
+        await sale.save();
+        
+        req.flash('success_msg', `Sale cancelled successfully. Refund: ₹${refundAmt.toFixed(2)}`);
+        res.redirect('/bill/' + sale._id);
+    } catch (error) {
+        console.error('Cancel sale error:', error);
+        req.flash('error_msg', 'Error cancelling sale');
+        res.redirect('/sales');
+    }
+});
+
+// Add items to existing sale (within 15 minutes)
+router.post('/add-items/:id', isAuthenticated, async (req, res) => {
+    try {
+        const { items, paymentMethod, amountReceived } = req.body;
+        
+        const adminId = getAdminId(req);
+        let filter = { _id: req.params.id, adminId };
+        
+        // Staff can only modify their own sales
+        if (req.session.user.role === 'staff') {
+            filter.createdBy = req.session.user.id;
+        }
+        
+        const sale = await Sale.findOne(filter);
+        
+        if (!sale) {
+            req.flash('error_msg', 'Sale not found');
+            return res.redirect('/sales');
+        }
+        
+        if (sale.isCancelled) {
+            req.flash('error_msg', 'Cannot add items to a cancelled sale');
+            return res.redirect('/bill/' + sale._id);
+        }
+        
+        // Check if within 15 minutes
+        const currentTime = new Date();
+        const saleTime = new Date(sale.createdAt);
+        const timeDifferenceMinutes = (currentTime - saleTime) / (1000 * 60);
+        
+        if (timeDifferenceMinutes > 15) {
+            req.flash('error_msg', 'Can only add items within 15 minutes of creating the sale');
+            return res.redirect('/bill/' + sale._id);
+        }
+        
+        // Validate and process new items
+        if (!items || Object.keys(items).length === 0) {
+            req.flash('error_msg', 'No items selected');
+            return res.redirect('/bill/' + sale._id);
+        }
+        
+        let additionalSubtotal = 0;
+        const newItems = [];
+        
+        for (const key in items) {
+            const item = items[key];
+            
+            if (!item.productId || !item.quantity) {
+                continue;
+            }
+            
+            // Fetch fresh product data
+            const product = await Product.findOne({ _id: item.productId, adminId });
+            
+            if (!product) {
+                req.flash('error_msg', `Product not found or access denied`);
+                return res.redirect('/bill/' + sale._id);
+            }
+            
+            const quantity = parseInt(item.quantity);
+            if (isNaN(quantity) || quantity <= 0) {
+                req.flash('error_msg', `Invalid quantity for ${product.name}`);
+                return res.redirect('/bill/' + sale._id);
+            }
+            
+            // Check stock
+            if (product.stock < quantity) {
+                req.flash('error_msg', `Insufficient stock for ${product.name}. Available: ${product.stock}`);
+                return res.redirect('/bill/' + sale._id);
+            }
+            
+            // Calculate subtotal
+            const itemSubtotal = product.price * quantity;
+            additionalSubtotal += itemSubtotal;
+            
+            // Reduce stock only if tracking is enabled
+            if (product.trackStock !== false) {
+                product.stock -= quantity;
+                await product.save();
+            }
+            
+            // Add to new items array
+            newItems.push({
+                product: product._id,
+                productName: product.name,
+                quantity: quantity,
+                price: product.price,
+                subtotal: itemSubtotal
+            });
+        }
+        
+        if (newItems.length === 0) {
+            req.flash('error_msg', 'No valid items to add');
+            return res.redirect('/bill/' + sale._id);
+        }
+        
+        // Parse and validate amount received
+        const receivedAmount = parseFloat(amountReceived) || 0;
+        if (receivedAmount < 0) {
+            req.flash('error_msg', 'Amount received cannot be negative');
+            return res.redirect('/bill/' + sale._id);
+        }
+        
+        if (receivedAmount > additionalSubtotal) {
+            req.flash('error_msg', `Amount received (₹${receivedAmount.toFixed(2)}) cannot exceed new items total (₹${additionalSubtotal.toFixed(2)})`);
+            return res.redirect('/bill/' + sale._id);
+        }
+        
+        // Update sale with new items
+        sale.items.push(...newItems);
+        sale.subtotal += additionalSubtotal;
+        sale.total = sale.subtotal - sale.discount;
+        sale.amountPaid += receivedAmount; // Add the amount actually received
+        sale.dueAmount = sale.total - sale.amountPaid;
+        
+        // Update payment status
+        if (sale.dueAmount <= 0) {
+            sale.paymentStatus = 'paid';
+            sale.dueAmount = 0;
+        } else if (sale.amountPaid > 0) {
+            sale.paymentStatus = 'partial';
+        } else {
+            sale.paymentStatus = 'due';
+        }
+        
+        // Add to payment history only if amount received > 0
+        if (receivedAmount > 0) {
+            sale.paymentHistory.push({
+                amount: receivedAmount,
+                date: new Date(),
+                method: paymentMethod || 'cash',
+                receivedBy: req.session.user.id
+            });
+        }
+        
+        await sale.save();
+        
+        const newDue = additionalSubtotal - receivedAmount;
+        let successMessage = `Successfully added ${newItems.length} item(s) to the bill. New items total: ₹${additionalSubtotal.toFixed(2)}`;
+        
+        if (receivedAmount > 0) {
+            successMessage += `, Received: ₹${receivedAmount.toFixed(2)}`;
+        }
+        
+        if (newDue > 0) {
+            successMessage += `, New Due: ₹${newDue.toFixed(2)}`;
+        }
+        
+        req.flash('success_msg', successMessage);
+        res.redirect('/bill/' + sale._id);
+        
+    } catch (error) {
+        console.error('Add items error:', error);
+        req.flash('error_msg', 'Error adding items to sale');
+        res.redirect('/sales');
+    }
+});
+
+module.exports = router;

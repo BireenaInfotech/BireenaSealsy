@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BIREENA SALESY - Login</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary-purple: #7c3aed;
+            --primary-purple-dark: #6d28d9;
+            --secondary-pink: #ec4899;
+            --accent-cyan: #06b6d4;
+            --accent-cyan-light: #22d3ee;
+            --dark-bg: #0f0318;
+            --dark-bg-alt: #1a0b2e;
+            --card-bg: rgba(30, 15, 50, 0.7);
+            --text-primary: #ffffff;
+            --text-secondary: #cbd5e1;
+            --text-muted: #94a3b8;
+            --error-red: #ef4444;
+            --font-heading: 'Playfair Display', serif;
+            --font-body: 'Poppins', sans-serif;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-body);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        .login-page {
+            position: relative;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .hero-background {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(124, 58, 237, 0.3) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(236, 72, 153, 0.3) 0%, transparent 50%),
+                linear-gradient(135deg, #0f0318 0%, #1a0b2e 50%, #2d1b4e 100%);
+            background-attachment: fixed;
+        }
+
+        .hero-background::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(124, 58, 237, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(124, 58, 237, 0.05) 1px, transparent 1px);
+            background-size: 50px 50px;
+            opacity: 0.3;
+        }
+
+        .hero-background::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: radial-gradient(2px 2px at 20% 30%, rgba(255, 255, 255, 0.3), transparent),
+                            radial-gradient(2px 2px at 60% 70%, rgba(34, 211, 238, 0.4), transparent),
+                            radial-gradient(1px 1px at 50% 50%, rgba(236, 72, 153, 0.3), transparent);
+            background-size: 200px 200px, 300px 300px, 150px 150px;
+            animation: particleFloat 20s ease-in-out infinite;
+        }
+
+        @keyframes particleFloat {
+            0%, 100% { transform: translate(0, 0); }
+            50% { transform: translate(30px, -30px); }
+        }
+
+        .top-navigation {
+            position: relative;
+            width: 100%;
+            padding: 1.5rem 3rem;
+            z-index: 100;
+        }
+
+        .nav-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .site-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            color: var(--text-primary);
+            font-family: var(--font-heading);
+        }
+
+        .site-title .gradient-text {
+            background: linear-gradient(135deg, var(--accent-cyan) 0%, var(--primary-purple) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-left: 0.25rem;
+        }
+
+        .nav-menu {
+            display: flex;
+            gap: 2.5rem;
+            align-items: center;
+        }
+
+        .nav-link {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 0.95rem;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .nav-link:hover {
+            color: var(--text-primary);
+        }
+
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            bottom: -4px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: linear-gradient(90deg, var(--accent-cyan), var(--primary-purple));
+            transition: width 0.3s ease;
+        }
+
+        .nav-link:hover::after {
+            width: 100%;
+        }
+
+        .nav-login-btn {
+            padding: 0.65rem 2rem;
+            background: linear-gradient(135deg, #8b5cf6 0%, #06b6d4 100%);
+            color: #ffffff;
+            border: none;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
+        }
+
+        .nav-login-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 25px rgba(139, 92, 246, 0.5);
+        }
+
+        .login-main {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .login-card {
+            width: 100%;
+            max-width: 460px;
+            padding: 3rem 2.5rem;
+            background: var(--card-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: 32px;
+            border: 1px solid rgba(124, 58, 237, 0.2);
+            box-shadow: 
+                0 8px 32px rgba(124, 58, 237, 0.2),
+                0 0 60px rgba(236, 72, 153, 0.15),
+                inset 0 1px 1px rgba(255, 255, 255, 0.1);
+            position: relative;
+        }
+
+        .login-card::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            background: linear-gradient(135deg, rgba(6, 182, 212, 0.3), rgba(124, 58, 237, 0.3), rgba(236, 72, 153, 0.3));
+            border-radius: 32px;
+            z-index: -1;
+            opacity: 0.6;
+            filter: blur(10px);
+        }
+
+        .card-heading {
+            font-family: var(--font-heading);
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            text-align: center;
+            color: var(--text-primary);
+        }
+
+        .gradient-accent {
+            background: linear-gradient(135deg, var(--accent-cyan) 0%, var(--primary-purple) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: gradientShift 3s ease-in-out infinite;
+        }
+
+        @keyframes gradientShift {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+
+        .card-subtitle {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            margin-bottom: 2rem;
+        }
+
+        .role-toggle {
+            display: flex;
+            background: rgba(20, 20, 40, 0.6);
+            border: 1px solid rgba(124, 58, 237, 0.3);
+            border-radius: 16px;
+            padding: 6px;
+            margin-bottom: 25px;
+            position: relative;
+            box-shadow: inset 0 0 20px rgba(124, 58, 237, 0.1);
+        }
+
+        .role-option {
+            flex: 1;
+            text-align: center;
+            padding: 12px 20px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 15px;
+            color: #8b5cf6;
+            transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            position: relative;
+            z-index: 1;
+            user-select: none;
+            border: 1px solid transparent;
+        }
+
+        .role-option.active {
+            color: #ffffff;
+            background: linear-gradient(135deg, rgba(168, 85, 247, 0.6) 0%, rgba(192, 132, 252, 0.7) 100%);
+            border: 1px solid rgba(168, 85, 247, 0.5);
+            box-shadow: 
+                0 0 20px rgba(168, 85, 247, 0.5),
+                0 0 40px rgba(192, 132, 252, 0.3),
+                inset 0 0 20px rgba(255, 255, 255, 0.15);
+            transform: scale(1.02);
+        }
+
+        .role-option:not(.active):hover {
+            color: #c4b5fd;
+            background: rgba(147, 51, 234, 0.1);
+            border: 1px solid rgba(147, 51, 234, 0.2);
+            transform: scale(1.01);
+        }
+
+        .login-form {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .form-label {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            font-weight: 500;
+            margin-left: 4px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .form-label svg {
+            width: 16px;
+            height: 16px;
+            color: var(--accent-cyan);
+        }
+
+        .input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .input-icon {
+            position: absolute;
+            left: 1rem;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            pointer-events: none;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 0.95rem 1rem 0.95rem 3rem;
+            background: rgba(15, 3, 24, 0.5);
+            border: 1.5px solid rgba(124, 58, 237, 0.3);
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-size: 0.95rem;
+            font-family: var(--font-body);
+            transition: all 0.3s ease;
+            outline: none;
+        }
+
+        .form-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .form-input:focus {
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.1),
+                        0 0 20px rgba(6, 182, 212, 0.2);
+            background: rgba(15, 3, 24, 0.7);
+        }
+
+        .form-input.input-error {
+            border-color: var(--error-red);
+        }
+
+        .error-message {
+            color: var(--error-red);
+            font-size: 0.85rem;
+            margin-left: 4px;
+            margin-top: -0.25rem;
+            display: none;
+        }
+
+        .error-message.show {
+            display: block;
+        }
+
+        .login-button {
+            width: 100%;
+            padding: 1rem 2rem;
+            background: rgba(30, 15, 50, 0.7);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            color: #ffffff;
+            border: 2px solid rgba(124, 58, 237, 0.5);
+            border-radius: 50px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 20px rgba(124, 58, 237, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-top: 1rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .login-button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .login-button:hover::before {
+            left: 100%;
+        }
+
+        .login-button:hover {
+            transform: translateY(-2px);
+            background: rgba(40, 25, 60, 0.8);
+            border-color: rgba(168, 85, 247, 0.7);
+            box-shadow: 
+                0 6px 30px rgba(124, 58, 237, 0.4),
+                0 0 40px rgba(168, 85, 247, 0.3);
+        }
+
+        .login-button:active {
+            transform: translateY(0);
+        }
+
+        .button-arrow {
+            margin-left: 0.25rem;
+            font-size: 1.2rem;
+            transition: transform 0.3s ease;
+        }
+
+        .login-button:hover .button-arrow {
+            transform: translateX(4px);
+        }
+
+        .alert {
+            border-radius: 12px;
+            padding: 12px 16px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            border: 1px solid;
+            animation: slideIn 0.5s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .alert-danger {
+            background: rgba(220, 38, 38, 0.15);
+            color: #fca5a5;
+            border-color: rgba(220, 38, 38, 0.4);
+            box-shadow: 0 0 20px rgba(220, 38, 38, 0.2);
+        }
+
+        .alert-success {
+            background: rgba(34, 197, 94, 0.15);
+            color: #86efac;
+            border-color: rgba(34, 197, 94, 0.4);
+            box-shadow: 0 0 20px rgba(34, 197, 94, 0.2);
+        }
+
+        @media (max-width: 768px) {
+            .top-navigation {
+                padding: 1rem 1.5rem;
+            }
+            
+            .nav-container {
+                flex-wrap: wrap;
+                gap: 1rem;
+            }
+            
+            .site-title {
+                font-size: 1.25rem;
+            }
+            
+            .nav-menu {
+                order: 3;
+                width: 100%;
+                justify-content: center;
+                gap: 1.25rem;
+                margin-top: 0.5rem;
+            }
+            
+            .nav-link {
+                font-size: 0.85rem;
+            }
+            
+            .nav-login-btn {
+                padding: 0.5rem 1.5rem;
+                font-size: 0.9rem;
+            }
+            
+            .login-card {
+                padding: 2.5rem 1.75rem;
+                max-width: 100%;
+            }
+            
+            .card-heading {
+                font-size: 2rem;
+            }
+            
+            .login-main {
+                padding: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="login-page">
+        <div class="hero-background"></div>
+        
+        <header class="top-navigation">
+            <div class="nav-container">
+                <div class="site-title">
+                    BIREENA<span class="gradient-text">SALESY</span>
+                </div>
+                
+                <nav class="nav-menu">
+                    <a href="/" class="nav-link">Home</a>
+                    <a href="/about" class="nav-link">About</a>
+                    <a href="/features" class="nav-link">Features</a>
+                    <a href="/pricing" class="nav-link">Pricing</a>
+                    <a href="/contact" class="nav-link">Contact</a>
+                </nav>
+                
+                <% if (typeof user !== 'undefined' && user) { %>
+                    <button class="nav-login-btn" onclick="window.location.href='/logout'">Logout →</button>
+                <% } else { %>
+                    <button class="nav-login-btn" onclick="window.location.href='/login'">Login →</button>
+                <% } %>
+            </div>
+        </header>
+
+        <main class="login-main">
+            <div class="login-card">
+                <h1 class="card-heading">
+                    Welcome <span class="gradient-accent">Back</span>
+                </h1>
+                <p class="card-subtitle">Sign in to your account to continue</p>
+                
+                <% if (typeof error_msg !== 'undefined' && error_msg.length > 0) { %>
+                    <div class="alert alert-danger">
+                        <%= error_msg %>
+                    </div>
+                <% } %>
+
+                <% if (typeof success_msg !== 'undefined' && success_msg.length > 0) { %>
+                    <div class="alert alert-success">
+                        <%= success_msg %>
+                    </div>
+                <% } %>
+
+                <div class="role-toggle">
+                    <div class="role-option active" onclick="switchRole('admin')">
+                        Admin
+                    </div>
+                    <div class="role-option" onclick="switchRole('employee')">
+                        Employee
+                    </div>
+                </div>
+
+                <form id="adminForm" class="login-form" style="display: block;">
+                    <div class="form-group">
+                        <label for="adminUsername" class="form-label">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                                <circle cx="12" cy="7" r="4"></circle>
+                            </svg>
+                            Username
+                        </label>
+                        <div class="input-wrapper">
+                            <span class="input-icon">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                                    <circle cx="12" cy="7" r="4"></circle>
+                                </svg>
+                            </span>
+                            <input
+                                type="text"
+                                id="adminUsername"
+                                name="username"
+                                placeholder="Enter your username"
+                                class="form-input"
+                                required
+                            />
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="adminPassword" class="form-label">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                            </svg>
+                            Password
+                        </label>
+                        <div class="input-wrapper">
+                            <span class="input-icon">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                                </svg>
+                            </span>
+                            <input
+                                type="password"
+                                id="adminPassword"
+                                name="password"
+                                placeholder="Enter your password"
+                                class="form-input"
+                                style="padding-right: 3rem;"
+                                required
+                            />
+                            <span class="password-toggle" onclick="togglePassword('adminPassword')" style="position: absolute; right: 1rem; cursor: pointer; color: var(--text-muted); transition: color 0.3s;" onmouseover="this.style.color='var(--accent-cyan)'" onmouseout="this.style.color='var(--text-muted)'">
+                                <svg id="adminPassword-eye" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                    <circle cx="12" cy="12" r="3"></circle>
+                                </svg>
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="login-button">
+                        Log In
+                        <span class="button-arrow">→</span>
+                    </button>
+                </form>
+
+                <form id="employeeForm" class="login-form" style="display: none;">
+                    <div class="form-group">
+                        <label for="employeeUsername" class="form-label">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                                <circle cx="12" cy="7" r="4"></circle>
+                            </svg>
+                            Username or Email
+                        </label>
+                        <div class="input-wrapper">
+                            <span class="input-icon">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                                    <circle cx="12" cy="7" r="4"></circle>
+                                </svg>
+                            </span>
+                            <input
+                                type="text"
+                                id="employeeUsername"
+                                name="username"
+                                placeholder="Enter username or email"
+                                class="form-input"
+                                required
+                            />
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="employeePassword" class="form-label">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                            </svg>
+                            Password
+                        </label>
+                        <div class="input-wrapper">
+                            <span class="input-icon">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                                </svg>
+                            </span>
+                            <input
+                                type="password"
+                                id="employeePassword"
+                                name="password"
+                                placeholder="Enter your password"
+                                class="form-input"
+                                style="padding-right: 3rem;"
+                                required
+                            />
+                            <span class="password-toggle" onclick="togglePassword('employeePassword')" style="position: absolute; right: 1rem; cursor: pointer; color: var(--text-muted); transition: color 0.3s;" onmouseover="this.style.color='var(--accent-cyan)'" onmouseout="this.style.color='var(--text-muted)'">
+                                <svg id="employeePassword-eye" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                    <circle cx="12" cy="12" r="3"></circle>
+                                </svg>
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="login-button">
+                        Log In
+                        <span class="button-arrow">→</span>
+                    </button>
+                </form>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // SECURITY: Clear any stored authentication data when login page loads
+        // This ensures fresh login is always required
+        localStorage.removeItem('isLoggedIn');
+        localStorage.removeItem('userRole');
+        localStorage.removeItem('username');
+        
+        function togglePassword(inputId) {
+            const input = document.getElementById(inputId);
+            const eyeIcon = document.getElementById(inputId + '-eye');
+            
+            if (input.type === 'password') {
+                input.type = 'text';
+                eyeIcon.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line>';
+            } else {
+                input.type = 'password';
+                eyeIcon.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle>';
+            }
+        }
+
+        function switchRole(role) {
+            document.querySelectorAll('.role-option').forEach(opt => opt.classList.remove('active'));
+            event.target.closest('.role-option').classList.add('active');
+            
+            const adminForm = document.getElementById('adminForm');
+            const employeeForm = document.getElementById('employeeForm');
+            
+            if (role === 'admin') {
+                employeeForm.style.display = 'none';
+                adminForm.style.display = 'block';
+            } else {
+                adminForm.style.display = 'none';
+                employeeForm.style.display = 'block';
+            }
+        }
+
+        document.getElementById('adminForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const username = document.getElementById('adminUsername').value.trim();
+            const password = document.getElementById('adminPassword').value;
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = 'Logging in...';
+            
+            try {
+                const response = await fetch('/admin/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    localStorage.setItem('isLoggedIn', 'true');
+                    localStorage.setItem('userRole', 'admin');
+                    localStorage.setItem('username', username);
+                    window.location.href = data.redirectUrl || '/dashboard';
+                } else {
+                    alert(data.message || 'Login failed');
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalText;
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                alert('An error occurred. Please try again.');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+            }
+        });
+
+        document.getElementById('employeeForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const username = document.getElementById('employeeUsername').value.trim();
+            const password = document.getElementById('employeePassword').value;
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = 'Logging in...';
+            
+            try {
+                const response = await fetch('/employee/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    localStorage.setItem('isLoggedIn', 'true');
+                    localStorage.setItem('userRole', 'employee');
+                    localStorage.setItem('username', username);
+                    // Force redirect to POS for employees
+                    if (data.forceRedirect && data.redirectUrl) {
+                        window.location.replace(data.redirectUrl);
+                    } else {
+                        window.location.href = data.redirectUrl || '/sales/new';
+                    }
+                } else {
+                    alert(data.message || 'Login failed');
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalText;
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                alert('An error occurred. Please try again.');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+            }
+        });
+    </script>
+</body>
+</html>

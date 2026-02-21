@@ -1,0 +1,1665 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <meta http-equiv="Content-Security-Policy" content="
+        default-src 'self';
+        script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net;
+        style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
+        font-src 'self' https://cdn.jsdelivr.net;
+        img-src 'self' data: https: http:;
+        connect-src 'self';
+    ">
+    <link rel="icon" type="image/x-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛒</text></svg>">
+    <title>POS - <%= typeof user !== 'undefined' && user && user.shopName ? user.shopName : 'Bireena Bakery' %></title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" crossorigin="anonymous">
+    <link rel="stylesheet" href="/css/pos.css">
+    <style>
+        /* Prevent loading spinner if resources fail */
+        body { opacity: 1 !important; }
+        .loading { display: none !important; }
+
+        /* Branch Filter Responsive Styles */
+        @media (max-width: 768px) {
+            .branch-filter-bar {
+                gap: 8px !important;
+                padding: 8px !important;
+            }
+            .branch-filter-bar > div {
+                min-width: 200px !important;
+            }
+            .branch-filter-bar select {
+                font-size: 12px !important;
+                padding: 4px 8px !important;
+            }
+            .branch-filter-bar > span {
+                font-size: 11px !important;
+                flex-basis: 100%;
+                text-align: center;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .branch-filter-bar {
+                flex-direction: column;
+                align-items: stretch !important;
+            }
+            .branch-filter-bar > div {
+                min-width: 100% !important;
+            }
+            .branch-filter-bar select {
+                max-width: 100% !important;
+            }
+            .branch-filter-bar > span {
+                text-align: left;
+                padding-left: 4px;
+            }
+        }
+
+        /* Cake Weight Selection Modal Styles */
+        .cake-weight-options {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .cake-weight-btn {
+            width: 100%;
+            padding: 20px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }
+
+        .cake-weight-btn:hover {
+            background: #fef3c7;
+            border-color: #f59e0b;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        .cake-weight-btn:active {
+            transform: translateY(0);
+        }
+    </style>
+</head>
+<body>
+    <div class="pos-container">
+        <!-- Header -->
+        <div class="pos-header">
+            <div class="pos-header-left">
+                <% if (typeof user !== 'undefined' && user && user.role === 'staff') { %>
+                    <!-- Employee Menu Toggle with Dropdown -->
+                    <div class="menu-dropdown-container">
+                        <button class="menu-toggle" id="menuToggleBtn">
+                            <i class="bi bi-list"></i>
+                        </button>
+                        <div class="menu-dropdown" id="menuDropdown">
+                            <a href="/dashboard" class="menu-dropdown-item">
+                                <i class="bi bi-speedometer2"></i> Dashboard
+                            </a>
+                            <a href="/sales" class="menu-dropdown-item">
+                                <i class="bi bi-receipt"></i> Sales History
+                            </a>
+                            <a href="/reports" class="menu-dropdown-item">
+                                <i class="bi bi-bar-chart-fill"></i> Reports
+                            </a>
+                            <a href="/logout" class="menu-dropdown-item logout-item">
+                                <i class="bi bi-box-arrow-right"></i> Logout
+                            </a>
+                        </div>
+                    </div>
+                <% } else { %>
+                    <!-- Admin Menu Toggle with Dropdown -->
+                    <div class="menu-dropdown-container">
+                        <button class="menu-toggle" id="adminMenuToggleBtn">
+                            <i class="bi bi-list"></i>
+                        </button>
+                        <div class="menu-dropdown" id="adminMenuDropdown">
+                            <a href="/dashboard" class="menu-dropdown-item">
+                                <i class="bi bi-speedometer2"></i> Dashboard
+                            </a>
+                            <a href="/inventory" class="menu-dropdown-item">
+                                <i class="bi bi-box-seam"></i> Inventory
+                            </a>
+                            <a href="/sales" class="menu-dropdown-item">
+                                <i class="bi bi-receipt"></i> Sales History
+                            </a>
+                            <a href="/reports" class="menu-dropdown-item">
+                                <i class="bi bi-bar-chart-fill"></i> Reports
+                            </a>
+                            <a href="/employees" class="menu-dropdown-item">
+                                <i class="bi bi-people-fill"></i> Employees
+                            </a>
+                            <a href="/logout" class="menu-dropdown-item logout-item">
+                                <i class="bi bi-box-arrow-right"></i> Logout
+                            </a>
+                        </div>
+                    </div>
+                <% } %>
+                
+                <div class="table-tabs">
+                    <button class="table-tab active" data-table="1">PERS 1<br><small>₹<span id="table1-total">0.00</span></small></button>
+                    <button class="table-tab" data-table="2">PERS 2<br><small>₹<span id="table2-total">0.00</span></small></button>
+                    <button class="table-tab" data-table="3">PERS 3<br><small>₹<span id="table3-total">0.00</span></small></button>
+                    <button class="table-tab" data-table="4">PERS 4<br><small>₹<span id="table4-total">0.00</span></small></button>
+                    <button class="table-tab" data-table="5">PERS 5<br><small>₹<span id="table5-total">0.00</span></small></button>
+                    <button class="add-person-btn" id="addPersonBtn" onclick="addNewPerson()">
+                        <i class="bi bi-plus-circle"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="pos-header-right">
+                <button class="print-btn" onclick="openPrintModal()">
+                    <i class="bi bi-printer-fill"></i> PRINT
+                    <span class="total-display">₹<span id="header-total">0.00</span></span>
+                </button>
+                <button class="btn btn-outline-light btn-sm" onclick="window.location.href='/logout'">
+                    <i class="bi bi-box-arrow-right"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Body -->
+        <div class="pos-body">
+            <!-- Category Sidebar -->
+            <div class="category-sidebar">
+                <button class="new-category-btn">NEW<br>CATEGORY</button>
+                <div class="category-item active" data-category="all">
+                    <div class="category-name">ALL</div>
+                    <div class="category-count">(<%= products.length %>)</div>
+                </div>
+                <% 
+                const categories = {};
+                products.forEach(p => {
+                    const cat = p.category || 'Other';
+                    if (!categories[cat]) categories[cat] = 0;
+                    categories[cat]++;
+                });
+                Object.keys(categories).forEach(cat => { 
+                %>
+                    <div class="category-item" data-category="<%= cat %>">
+                        <div class="category-name"><%= cat.toUpperCase() %></div>
+                        <div class="category-count">(<%= categories[cat] %>)</div>
+                    </div>
+                <% }); %>
+            </div>
+
+            <!-- Products Area -->
+            <div class="products-area">
+                <% if (typeof user !== 'undefined' && user) { %>
+                <div class="branch-filter-bar" style="display:flex; flex-wrap:wrap; align-items:center; gap:10px; padding:8px 12px; background:#f0f0ff; border-bottom:1px solid #d0d0f0;">
+                    <div style="display:flex; align-items:center; gap:10px; flex:1; min-width:250px;">
+                        <i class="bi bi-funnel-fill" style="color:#6366f1; font-size:16px;"></i>
+                        <span style="font-weight:600; font-size:13px; color:#374151; white-space:nowrap;">Branch:</span>
+                        <select id="branchFilter"
+                            onchange="window.location.href='/sales/new?employee='+this.value"
+                            style="flex:1; min-width:180px; max-width:280px; padding:5px 10px; border-radius:8px; border:1.5px solid #6366f1; font-size:13px; font-weight:600; color:#374151; background:#fff; cursor:pointer;">
+                            <% if (user.role === 'admin') { %>
+                                <option value="self" <%= (typeof selectedEmployeeId !== 'undefined' && selectedEmployeeId === 'self') ? 'selected' : '' %>>
+                                    &#128100; My Products
+                                </option>
+                                <option value="all" <%= (typeof selectedEmployeeId !== 'undefined' && selectedEmployeeId === 'all') ? 'selected' : '' %>>
+                                    &#127978; All Products (Every Branch)
+                                </option>
+                                <% if (typeof employees !== 'undefined' && employees.length > 0) { %>
+                                    <optgroup label="── Employees ──">
+                                    <% employees.forEach(function(emp) { %>
+                                        <option value="<%= emp._id %>" <%= (typeof selectedEmployeeId !== 'undefined' && selectedEmployeeId === emp._id.toString()) ? 'selected' : '' %>>
+                                            &#128101; <%= emp.fullName || emp.username %> &mdash; <%= emp.branch || 'Main Branch' %>
+                                        </option>
+                                    <% }); %>
+                                    </optgroup>
+                                <% } %>
+                            <% } else { %>
+                                <option value="admin" <%= (typeof selectedEmployeeId !== 'undefined' && selectedEmployeeId === 'admin') ? 'selected' : '' %>>
+                                    &#128100; Admin's Products
+                                </option>
+                                <option value="self" <%= (typeof selectedEmployeeId !== 'undefined' && selectedEmployeeId === 'self') ? 'selected' : '' %>>
+                                    &#128101; My Products
+                                </option>
+                            <% } %>
+                        </select>
+                    </div>
+                    <span style="font-size:12px; color:#6b7280; white-space:nowrap;">
+                        <strong style="color:#6366f1;"><%= products.length %></strong> products
+                        <% if (user.role === 'admin') { %>
+                            <% if (typeof selectedEmployeeId !== 'undefined' && selectedEmployeeId !== 'self' && selectedEmployeeId !== 'all' && typeof employees !== 'undefined') { %>
+                                &nbsp;&bull;&nbsp;
+                                <% const selEmp = employees.find(e => e._id.toString() === selectedEmployeeId); %>
+                                <%= selEmp ? (selEmp.fullName || selEmp.username) : '' %>
+                            <% } else if (typeof selectedEmployeeId !== 'undefined' && selectedEmployeeId === 'all') { %>
+                                &nbsp;&bull;&nbsp;All branches
+                            <% } %>
+                        <% } else { %>
+                            <% if (typeof selectedEmployeeId !== 'undefined' && selectedEmployeeId === 'admin' && typeof adminUser !== 'undefined' && adminUser) { %>
+                                &nbsp;&bull;&nbsp;<%= adminUser.fullName || adminUser.username %>
+                            <% } else if (typeof selectedEmployeeId !== 'undefined' && selectedEmployeeId === 'self') { %>
+                                &nbsp;&bull;&nbsp;<%= user.fullName || user.username %>
+                            <% } %>
+                        <% } %>
+                    </span>
+                </div>
+                <% } %>
+                <div class="search-bar">
+                    <input type="text" class="search-input" id="productSearch" placeholder="Search item...">
+                </div>
+
+                <div class="products-grid" id="productsGrid">
+                    <% products.forEach(product => { %>
+                        <div class="product-card" 
+                             data-id="<%= product._id %>"
+                             data-name="<%= product.name %>"
+                             data-price="<%= product.price %>"
+                             data-halfkgprice="<%= product.halfKgPrice || 0 %>"
+                             data-onekgprice="<%= product.oneKgPrice || 0 %>"
+                             data-pastryprice="<%= product.pastryPrice || 0 %>"
+                             data-pastrygrams="<%= product.pastryGrams || 100 %>"
+                             data-stock="<%= product.stock %>"
+                             data-unit="<%= product.unit || 'piece' %>"
+                             data-gramamount="<%= product.gramAmount || 0 %>"
+                             data-category="<%= product.category || 'Other' %>">
+                            <% if (product.image && product.image.trim() !== '') { %>
+                                <img src="<%= product.image %>" 
+                                     alt="<%= product.name %>" 
+                                     class="product-image"
+                                     loading="lazy"
+                                     onerror="this.onerror=null; this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                <div class="product-image product-image-fallback" style="display:none; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); align-items: center; justify-content: center; color: white; font-size: 24px; font-weight: bold;">
+                                    <%= product.name.substring(0,2).toUpperCase() %>
+                                </div>
+                            <% } else { %>
+                                <div class="product-image" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; color: white; font-size: 24px; font-weight: bold;">
+                                    <%= product.name.substring(0,2).toUpperCase() %>
+                                </div>
+                            <% } %>
+                            <div class="product-name">
+                                <%= product.name %>
+                                <% if (product.unit === 'gms' && product.gramAmount > 0) { %>
+                                    <small style="display: block; color: #6b7280; font-size: 11px;"><%= product.gramAmount %>g</small>
+                                <% } %>
+                            </div>
+                            <div class="product-price-stock">
+                                <% if (product.category && product.category.toLowerCase().includes('cake') && (product.halfKgPrice > 0 || product.oneKgPrice > 0)) { %>
+                                    <div style="font-size: 12px; line-height: 1.3;">
+                                        <span class="product-price" style="display: block;">½kg: ₹<%= (product.halfKgPrice || 0).toFixed(2) %></span>
+                                        <span class="product-price" style="display: block;">1kg: ₹<%= (product.oneKgPrice || 0).toFixed(2) %></span>
+                                        <% if (product.pastryPrice > 0) { %>
+                                        <span class="product-price" style="display: block; font-size: 11px;">Pastry (<%= product.pastryGrams || 100 %>g): ₹<%= (product.pastryPrice || 0).toFixed(2) %></span>
+                                        <% } %>
+                                    </div>
+                                <% } else { %>
+                                    <span class="product-price">₹<%= product.price.toFixed(2) %></span>
+                                <% } %>
+                                <% if (product.trackStock === false || product.stock === 0) { %>
+                                    <span class="product-stock" style="color: #10b981;">Made to Order</span>
+                                <% } else { %>
+                                    <span class="product-stock <%= product.stock < 10 ? 'low' : '' %>">
+                                        Stock <%= product.stock.toFixed(1) %>
+                                    </span>
+                                <% } %>
+                            </div>
+                            <div class="quantity-controls" style="display:none;">
+                                <button class="qty-btn" onclick="event.stopPropagation(); decreaseQty(this)">-</button>
+                                <span class="qty-display" onclick="event.stopPropagation(); editQuantity(this)">0.5</span>
+                                <button class="qty-btn" onclick="event.stopPropagation(); increaseQty(this)">+</button>
+                            </div>
+                            <button class="remove-btn" style="display:none;" onclick="event.stopPropagation(); removeFromCart(this)">×</button>
+                        </div>
+                    <% }); %>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="pos-footer">
+            <div class="discount-section">
+                <label>Discount %</label>
+                <input type="number" class="discount-input" id="discountPercent" value="0" min="0" max="100" onchange="updateTotals()">
+            </div>
+            <button class="kot-btn">KOT/TOKEN</button>
+            <button class="preview-btn" onclick="openPrintModal()">PREVIEW</button>
+        </div>
+    </div>
+
+    <!-- Print Bill Modal -->
+    <div class="print-modal" id="printModal">
+        <div class="print-modal-content">
+            <div class="modal-header">
+                <h4>Print Bill</h4>
+                <button class="close-modal" onclick="closePrintModal()">×</button>
+            </div>
+
+            <div class="billing-type-tabs">
+                <button class="billing-type-tab active" data-type="basic">
+                    <i class="bi bi-circle-fill"></i> BASIC
+                </button>
+                <button class="billing-type-tab" data-type="advance">
+                    <i class="bi bi-circle"></i> ADVANCE
+                </button>
+            </div>
+
+            <div class="payment-buttons">
+                <button class="payment-btn active" data-payment="cash">CASH</button>
+                <button class="payment-btn" data-payment="upi">UPI</button>
+                <button class="payment-btn" data-payment="due">Due</button>
+            </div>
+
+            <form id="billForm" onsubmit="submitBill(event)">
+                <!-- B2B Advanced Fields (Hidden by default) -->
+                <div id="advanceFields" style="display: none;">
+                    <div class="form-group">
+                        <label>Invoice Type <span class="text-danger">*</span></label>
+                        <select class="form-control" name="invoiceType" id="invoiceType">
+                            <option value="B2B">B2B (Business to Business)</option>
+                            <option value="B2C">B2C (Business to Customer)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Customer GSTIN (Optional for B2B)</label>
+                        <input type="text" class="form-control" name="customerGSTIN" id="customerGSTIN" placeholder="Enter 15-digit GSTIN" maxlength="15">
+                        <small class="text-muted">Required for B2B invoices</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Customer Billing Address</label>
+                        <textarea class="form-control" name="billingAddress" id="billingAddress" rows="2" placeholder="Enter billing address"></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>State Code</label>
+                        <select class="form-control" name="stateCode" id="stateCode">
+                            <option value="">-- Select State --</option>
+                            <option value="01">01 - Jammu & Kashmir</option>
+                            <option value="02">02 - Himachal Pradesh</option>
+                            <option value="03">03 - Punjab</option>
+                            <option value="04">04 - Chandigarh</option>
+                            <option value="05">05 - Uttarakhand</option>
+                            <option value="06">06 - Haryana</option>
+                            <option value="07">07 - Delhi</option>
+                            <option value="08">08 - Rajasthan</option>
+                            <option value="09">09 - Uttar Pradesh</option>
+                            <option value="10">10 - Bihar</option>
+                            <option value="11">11 - Sikkim</option>
+                            <option value="12">12 - Arunachal Pradesh</option>
+                            <option value="13">13 - Nagaland</option>
+                            <option value="14">14 - Manipur</option>
+                            <option value="15">15 - Mizoram</option>
+                            <option value="16">16 - Tripura</option>
+                            <option value="17">17 - Meghalaya</option>
+                            <option value="18">18 - Assam</option>
+                            <option value="19">19 - West Bengal</option>
+                            <option value="20">20 - Jharkhand</option>
+                            <option value="21">21 - Odisha</option>
+                            <option value="22">22 - Chhattisgarh</option>
+                            <option value="23">23 - Madhya Pradesh</option>
+                            <option value="24">24 - Gujarat</option>
+                            <option value="26">26 - Dadra & Nagar Haveli and Daman & Diu</option>
+                            <option value="27">27 - Maharashtra</option>
+                            <option value="29">29 - Karnataka</option>
+                            <option value="30">30 - Goa</option>
+                            <option value="32">32 - Kerala</option>
+                            <option value="33">33 - Tamil Nadu</option>
+                            <option value="34">34 - Puducherry</option>
+                            <option value="35">35 - Andaman & Nicobar</option>
+                            <option value="36">36 - Telangana</option>
+                            <option value="37">37 - Andhra Pradesh</option>
+                            <option value="38">38 - Ladakh</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>HSN/SAC Code (Optional)</label>
+                        <input type="text" class="form-control" name="hsnCode" id="hsnCode" placeholder="Enter HSN/SAC code">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Customer Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="customerNameAdvance" id="customerNameAdvance" placeholder="Enter customer name">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Mobile Number <span class="text-danger">*</span></label>
+                        <input type="tel" class="form-control" name="customerPhoneAdvance" id="customerPhoneAdvance" placeholder="Enter mobile number" maxlength="10">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Address (optional)</label>
+                        <textarea class="form-control" name="customerAddressAdvance" id="customerAddressAdvance" placeholder="Enter customer address" rows="2"></textarea>
+                    </div>
+                </div>
+
+                <!-- Basic Fields (Visible by default) -->
+                <div id="basicFields">
+                    <div class="form-group">
+                        <label>Customer Name (optional)</label>
+                        <input type="text" class="form-control" name="customerName" placeholder="Enter customer name">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Mobile Number (optional)</label>
+                        <input type="tel" class="form-control" name="customerPhone" placeholder="Enter mobile number" maxlength="10">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Address (optional)</label>
+                        <textarea class="form-control" name="customerAddress" placeholder="Enter customer address" rows="2"></textarea>
+                    </div>
+                </div>
+
+                <!-- Discount Section -->
+                <div class="form-group" style="border-top: 1px solid #e0e0e0; padding-top: 15px; margin-top: 15px;">
+                    <label style="font-weight: 600; color: #6366f1;">💰 Discount</label>
+                    <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                        <button type="button" class="btn btn-sm" id="discountPercentBtn" onclick="setDiscountType('percentage')" style="flex: 1; background: #6366f1; color: white; border: 2px solid #6366f1;">% Percentage</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="discountRsBtn" onclick="setDiscountType('fixed')" style="flex: 1; border: 2px solid #ddd;">₹ Rupees</button>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <input type="number" class="form-control" id="modalDiscountValue" value="0" min="0" step="0.01" placeholder="Enter discount" oninput="updateModalTotals()" style="flex: 1;">
+                        <span id="discountDisplayType" style="font-weight: 600; color: #6366f1; min-width: 30px;">%</span>
+                    </div>
+                    <small class="text-muted" id="discountHelp">Enter percentage (0-100%)</small>
+                </div>
+
+                <div class="form-group">
+                    <label>Amount Paid</label>
+                    <input type="number" class="form-control" name="amountPaid" id="amountPaid" step="0.01" min="0" placeholder="Enter amount paid" onchange="calculateDue()">
+                    <small class="text-muted">Leave empty for full payment or enter partial amount</small>
+                </div>
+
+                <div class="form-group" id="dueDisplay" style="display:none;">
+                    <div class="alert alert-warning">
+                        <strong>Due Amount:</strong> ₹<span id="dueAmount">0.0</span>
+                    </div>
+                </div>
+
+                <div class="whatsapp-checkbox">
+                    <input type="checkbox" id="whatsappShare" name="whatsappShare">
+                    <label for="whatsappShare">
+                        <i class="bi bi-whatsapp" style="color: #25D366;"></i>
+                        Share bill on whatsapp
+                    </label>
+                </div>
+
+                <div class="cart-summary">
+                    <div id="modalCartItems"></div>
+                    <div style="border-top: 1px solid #eee; padding-top: 8px; margin-top: 8px; font-size: 13px; color: #666;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                            <span>Subtotal:</span>
+                            <span>₹<span id="modalSubtotal">0.00</span></span>
+                        </div>
+                        <div id="modalDiscountDisplay" style="display: none; color: #f59e0b; margin-bottom: 4px;">
+                            <div style="display: flex; justify-content: space-between;">
+                                <span>Discount (<span id="modalDiscountLabel"></span>):</span>
+                                <span>- ₹<span id="modalDiscountAmount">0.00</span></span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="cart-total">
+                        <span>Total:</span>
+                        <span>₹<span id="modalTotal">0.00</span></span>
+                    </div>
+                </div>
+
+                <input type="hidden" name="items" id="billItems">
+                <input type="hidden" name="paymentMethod" id="paymentMethod" value="cash">
+                <input type="hidden" name="discount" id="billDiscount">
+                <input type="hidden" name="discountType" id="billDiscountType" value="percentage">
+                <input type="hidden" name="customerAddress" id="hiddenCustomerAddress">
+
+                <button type="submit" class="print-bill-btn">PRINT BILL</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Cake Weight Selection Modal -->
+    <div class="print-modal" id="cakeWeightModal">
+        <div class="print-modal-content" style="max-width: 400px;">
+            <div class="modal-header">
+                <h4><i class="bi bi-cake2"></i> Select Cake Weight</h4>
+                <button class="close-modal" onclick="closeCakeWeightModal()">×</button>
+            </div>
+            <div class="modal-body" style="padding: 20px;">
+                <p id="cakeProductName" style="margin-bottom: 20px; font-weight: 600; color: #333;"></p>
+                <div class="cake-weight-options">
+                    <button class="cake-weight-btn" onclick="selectCakeWeight('half')" id="halfKgOption">
+                        <div style="font-size: 18px; font-weight: 600;">Half Kg (0.5 kg)</div>
+                        <div style="font-size: 16px; color: #10b981; margin-top: 5px;">₹<span id="halfKgPriceDisplay">0.00</span></div>
+                    </button>
+                    <button class="cake-weight-btn" onclick="selectCakeWeight('full')" id="fullKgOption">
+                        <div style="font-size: 18px; font-weight: 600;">One Kg (1 kg)</div>
+                        <div style="font-size: 16px; color: #10b981; margin-top: 5px;">₹<span id="fullKgPriceDisplay">0.00</span></div>
+                    </button>
+                    <button class="cake-weight-btn" onclick="selectCakeWeight('pastry')" id="pastryOption" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                        <div style="font-size: 18px; font-weight: 600;">PASTRY (<span id="pastryGramsDisplay">100</span>g)</div>
+                        <div style="font-size: 16px; color: #fff; margin-top: 5px;">₹<span id="pastryPriceDisplay">0.00</span></div>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous" onerror="console.warn('Bootstrap JS failed to load')"></script>
+    <script>
+        // Prevent page from getting stuck in loading state
+        window.addEventListener('DOMContentLoaded', function() {
+            console.log('✅ POS page loaded successfully');
+            document.body.style.opacity = '1';
+        });
+
+        // Handle failed image loads gracefully
+        document.addEventListener('error', function(e) {
+            if (e.target.tagName === 'IMG') {
+                console.warn('Image failed to load:', e.target.src);
+                e.target.style.display = 'block';
+            }
+        }, true);
+
+        // Cart state management - Individual carts for each person
+        let carts = {
+            1: {},
+            2: {},
+            3: {},
+            4: {},
+            5: {}
+        };
+        let currentTable = 1;
+        let maxPersons = 5;
+        let cart = carts[currentTable]; // Reference to current cart
+
+        // Add new person function
+        function addNewPerson() {
+            maxPersons++;
+            carts[maxPersons] = {};
+            
+            // Create new tab button
+            const tabsContainer = document.querySelector('.table-tabs');
+            const addBtn = document.getElementById('addPersonBtn');
+            
+            const newTab = document.createElement('button');
+            newTab.className = 'table-tab';
+            newTab.dataset.table = maxPersons;
+            newTab.innerHTML = `PERS ${maxPersons}<br><small>₹<span id="table${maxPersons}-total">0.00</span></small>`;
+            
+            // Insert before the add button
+            tabsContainer.insertBefore(newTab, addBtn);
+            
+            // Add click listener to new tab
+            newTab.addEventListener('click', function() {
+                document.querySelectorAll('.table-tab').forEach(t => t.classList.remove('active'));
+                this.classList.add('active');
+                currentTable = parseInt(this.dataset.table);
+                cart = carts[currentTable];
+                refreshProductDisplay();
+                updateTotals();
+            });
+        }
+
+        // Category filter
+        document.querySelectorAll('.category-item').forEach(item => {
+            item.addEventListener('click', function() {
+                document.querySelectorAll('.category-item').forEach(i => i.classList.remove('active'));
+                this.classList.add('active');
+                
+                const category = this.dataset.category;
+                filterProducts(category);
+            });
+        });
+
+        function filterProducts(category) {
+            const products = document.querySelectorAll('.product-card');
+            products.forEach(product => {
+                if (category === 'all' || product.dataset.category === category) {
+                    product.style.display = 'block';
+                } else {
+                    product.style.display = 'none';
+                }
+            });
+        }
+
+        // Search functionality
+        document.getElementById('productSearch').addEventListener('input', function(e) {
+            const search = e.target.value.toLowerCase();
+            document.querySelectorAll('.product-card').forEach(card => {
+                const name = card.dataset.name.toLowerCase();
+                card.style.display = name.includes(search) ? 'block' : 'none';
+            });
+        });
+
+        // Add click listener to products
+        document.querySelectorAll('.product-card').forEach(card => {
+            card.addEventListener('click', function() {
+                if (!this.classList.contains('in-cart')) {
+                    addToCart(this);
+                }
+            });
+        });
+
+        // Add to cart
+        function addToCart(element) {
+            const id = element.dataset.id;
+            const name = element.dataset.name;
+            const price = parseFloat(element.dataset.price);
+            const stock = parseFloat(element.dataset.stock);
+            const unit = element.dataset.unit || 'piece';
+            const category = element.dataset.category || '';
+            const halfKgPrice = parseFloat(element.dataset.halfkgprice) || 0;
+            const oneKgPrice = parseFloat(element.dataset.onekgprice) || 0;
+            const pastryPrice = parseFloat(element.dataset.pastryprice) || 0;
+            const pastryGrams = parseInt(element.dataset.pastrygrams) || 100;
+            const gramAmount = parseInt(element.dataset.gramamount) || 0;
+
+            // Check if this is a cake product with weight-based pricing
+            if (category.toLowerCase().includes('cake') && (halfKgPrice > 0 || oneKgPrice > 0)) {
+                // Show weight selection modal
+                console.log(`🎂 Cake product detected: ${name}`, { halfKgPrice, oneKgPrice, pastryPrice, pastryGrams });
+                openCakeWeightModal(element, id, name, stock, unit, halfKgPrice, oneKgPrice, pastryPrice, pastryGrams);
+                return;
+            }
+
+            if (!cart[id]) {
+                // For kg products, start with 0.5 kg, for others start with 1
+                const initialQty = unit === 'kg' ? 0.5 : 1;
+                
+                // Build name with gram amount for GMS products
+                let displayName = name;
+                if (unit === 'gms' && gramAmount > 0) {
+                    displayName = `${name} (${gramAmount}g)`;
+                }
+                
+                cart[id] = {
+                    id: id,
+                    name: displayName,
+                    price: price,
+                    quantity: initialQty,
+                    stock: stock,
+                    unit: unit
+                };
+                
+                updateProductCardDisplay(element, cart[id]);
+            }
+
+            updateTotals();
+        }
+
+        // Update product card display based on current cart
+        function updateProductCardDisplay(element, item) {
+            if (item) {
+                element.classList.add('in-cart');
+                element.querySelector('.quantity-controls').style.display = 'flex';
+                element.querySelector('.remove-btn').style.display = 'block';
+                // Display quantity based on unit type
+                const displayQty = item.unit === 'kg' ? item.quantity.toFixed(1) : Math.floor(item.quantity);
+                element.querySelector('.qty-display').textContent = displayQty;
+            } else {
+                element.classList.remove('in-cart');
+                element.querySelector('.quantity-controls').style.display = 'none';
+                element.querySelector('.remove-btn').style.display = 'none';
+                element.querySelector('.qty-display').textContent = '0';
+            }
+        }
+
+        function increaseQty(btn) {
+            const card = btn.closest('.product-card');
+            const id = card.dataset.id;
+            const stock = parseFloat(card.dataset.stock);
+            const unit = card.dataset.unit || 'piece';
+            
+            if (cart[id]) {
+                // For cake products, use baseWeight; for kg products, increment by 0.5; for others by 1
+                let increment;
+                if (cart[id].isCake && cart[id].baseWeight) {
+                    increment = cart[id].baseWeight;
+                } else if (unit === 'kg') {
+                    increment = 0.5;
+                } else {
+                    increment = 1;
+                }
+                
+                const newQty = cart[id].quantity + increment;
+                
+                // Check stock limit (only for tracked products with stock > 0)
+                if (stock > 0 && newQty > stock) {
+                    alert(`Maximum stock available is ${stock} ${unit}`);
+                    return;
+                }
+                
+                cart[id].quantity = newQty;
+                // Display with appropriate decimals
+                const displayQty = unit === 'kg' ? newQty.toFixed(1) : Math.floor(newQty);
+                card.querySelector('.qty-display').textContent = displayQty;
+                updateTotals();
+            }
+        }
+
+        function decreaseQty(btn) {
+            const card = btn.closest('.product-card');
+            const id = card.dataset.id;
+            const unit = card.dataset.unit || 'piece';
+            
+            if (cart[id]) {
+                // For cake products, use baseWeight; for kg products, decrement by 0.5; for others by 1
+                let decrement, minQty;
+                if (cart[id].isCake && cart[id].baseWeight) {
+                    decrement = cart[id].baseWeight;
+                    minQty = cart[id].baseWeight;
+                } else if (unit === 'kg') {
+                    decrement = 0.5;
+                    minQty = 0.5;
+                } else {
+                    decrement = 1;
+                    minQty = 1;
+                }
+                
+                if (cart[id].quantity > minQty) {
+                    cart[id].quantity -= decrement;
+                    // Display with appropriate decimals
+                    const displayQty = unit === 'kg' ? cart[id].quantity.toFixed(1) : Math.floor(cart[id].quantity);
+                    card.querySelector('.qty-display').textContent = displayQty;
+                    updateTotals();
+                }
+            }
+        }
+
+        // Edit quantity by clicking on the number
+        function editQuantity(qtyDisplay) {
+            const card = qtyDisplay.closest('.product-card');
+            const id = card.dataset.id;
+            const stock = parseFloat(card.dataset.stock);
+            const unit = card.dataset.unit || 'piece';
+            
+            if (!cart[id]) return;
+            
+            const currentQty = cart[id].quantity;
+            
+            // Create input element
+            const input = document.createElement('input');
+            input.type = 'number';
+            
+            // Configure based on unit type
+            if (unit === 'kg') {
+                input.min = '0.01';
+                input.step = '0.01';
+                input.value = currentQty.toFixed(2);
+            } else {
+                input.min = '1';
+                input.step = '1';
+                input.value = Math.floor(currentQty);
+            }
+            
+            if (stock > 0) {
+                input.max = stock.toString();
+            }
+            
+            input.className = 'qty-edit-input';
+            input.style.width = '60px';
+            input.style.textAlign = 'center';
+            input.style.border = '2px solid #4F46E5';
+            input.style.borderRadius = '4px';
+            input.style.padding = '2px';
+            input.style.fontWeight = '600';
+            
+            // Replace span with input
+            qtyDisplay.style.display = 'none';
+            qtyDisplay.parentNode.insertBefore(input, qtyDisplay);
+            input.focus();
+            input.select();
+            
+            // Save on Enter or blur
+            const saveQty = () => {
+                let newQty = parseFloat(input.value);
+                
+                // Validate based on unit
+                if (unit === 'kg') {
+                    if (isNaN(newQty) || newQty < 0.01) {
+                        newQty = 0.5;
+                    }
+                    // Check stock limit (only for tracked products with stock > 0)
+                    if (stock > 0 && newQty > stock) {
+                        newQty = stock;
+                        alert(`Maximum stock available is ${stock} ${unit}`);
+                    }
+                } else {
+                    newQty = parseInt(input.value);
+                    if (isNaN(newQty) || newQty < 1) {
+                        newQty = 1;
+                    }
+                    // Check stock limit (only for tracked products with stock > 0)
+                    if (stock > 0 && newQty > stock) {
+                        newQty = Math.floor(stock);
+                        alert(`Maximum stock available is ${Math.floor(stock)} ${unit}`);
+                    }
+                }
+                
+                // Update cart
+                cart[id].quantity = newQty;
+                const displayQty = unit === 'kg' ? newQty.toFixed(1) : Math.floor(newQty);
+                qtyDisplay.textContent = displayQty;
+                
+                // Remove input and show span
+                input.remove();
+                qtyDisplay.style.display = '';
+                
+                updateTotals();
+            };
+            
+            input.addEventListener('blur', saveQty);
+            input.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    saveQty();
+                }
+            });
+            
+            // Cancel on Escape
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    input.remove();
+                    qtyDisplay.style.display = '';
+                }
+            });
+        }
+
+        function removeFromCart(btn) {
+            const card = btn.closest('.product-card');
+            const id = card.dataset.id;
+            
+            delete cart[id];
+            card.classList.remove('in-cart');
+            card.querySelector('.quantity-controls').style.display = 'none';
+            card.querySelector('.remove-btn').style.display = 'none';
+            card.querySelector('.qty-display').textContent = '0';
+            
+            updateTotals();
+        }
+
+        // ── GST settings (from server) ──────────────────────────────
+        let GST_ENABLED  = <%- JSON.stringify(typeof gstSettings !== 'undefined' ? gstSettings.enableGST : false) %>;
+        let GST_CGST     = <%- JSON.stringify(typeof gstSettings !== 'undefined' ? gstSettings.defaultCGSTRate : 0) %>;
+        let GST_SGST     = <%- JSON.stringify(typeof gstSettings !== 'undefined' ? gstSettings.defaultSGSTRate : 0) %>;
+        let GST_IGST     = <%- JSON.stringify(typeof gstSettings !== 'undefined' ? gstSettings.defaultIGSTRate : 0) %>;
+        // ─────────────────────────────────────────────────────────────
+
+        // Fetch latest GST rates from server before calculations
+        async function refreshGSTRates() {
+            try {
+                console.log('🔄 Fetching latest GST rates from server...');
+                const response = await fetch('/sales/api/gst-rates');
+                const data = await response.json();
+                console.log('📊 Server response:', data);
+                if (data.success) {
+                    GST_ENABLED = data.enableGST;
+                    GST_CGST = data.defaultCGSTRate;
+                    GST_SGST = data.defaultSGSTRate;
+                    GST_IGST = data.defaultIGSTRate;
+                    console.log('✅ GST rates updated: CGST=' + GST_CGST + '%, SGST=' + GST_SGST + '%, IGST=' + GST_IGST + '%, Enabled=' + GST_ENABLED);
+                    return true;
+                } else {
+                    console.error('❌ Failed to fetch GST rates:', data);
+                }
+            } catch (error) {
+                console.error('⚠️ Error fetching GST rates:', error);
+            }
+            return false;
+        }
+
+        // Returns { cgst, sgst, igst, total } for a given taxable amount
+        function calcGSTAmounts(taxable) {
+            const invoiceType = document.getElementById('invoiceType');
+            const activeTab = document.querySelector('.billing-type-tab.active');
+            const isAdvance = activeTab && activeTab.dataset.type === 'advance';
+            // GST applies ONLY when ADVANCE tab is active AND invoice type is B2B
+            const isB2B = isAdvance && invoiceType && invoiceType.value === 'B2B';
+            if (!GST_ENABLED || !isB2B) return { cgst: 0, sgst: 0, igst: 0, total: 0 };
+            
+            // For now, assume intra-state (CGST + SGST), not inter-state (IGST)
+            // Backend will handle inter-state logic based on GSTINs
+            const cgst  = parseFloat(((taxable * GST_CGST) / 100).toFixed(2));
+            const sgst  = parseFloat(((taxable * GST_SGST) / 100).toFixed(2));
+            const igst  = 0; // Frontend doesn't determine inter-state, backend does
+            const gstTotal = cgst + sgst; // Only CGST + SGST for display
+            
+            console.log(`[FRONTEND GST] taxable=${taxable}, CGST=${GST_CGST}% = ₹${cgst}, SGST=${GST_SGST}% = ₹${sgst}, Total GST=${gstTotal}`);
+            return { cgst, sgst, igst, total: gstTotal };
+        }
+
+        function updateTotals() {
+            let subtotal = 0;
+            Object.values(cart).forEach(item => { subtotal += item.price * item.quantity; });
+
+            const discountPercent = parseFloat(document.getElementById('discountPercent').value) || 0;
+            const discountAmount  = (subtotal * discountPercent) / 100;
+            const taxable = subtotal - discountAmount;
+            console.log(`📊 [updateTotals] subtotal=${subtotal}, taxable=${taxable}, Using GST rates: CGST=${GST_CGST}%, SGST=${GST_SGST}%`);
+            const gst     = calcGSTAmounts(taxable);
+            const total   = parseFloat((taxable + gst.total).toFixed(2));
+            console.log(`📊 [updateTotals] GST=${gst.total}, FINAL TOTAL=${total}`);
+
+            document.getElementById('header-total').textContent = total.toFixed(2);
+            document.getElementById(`table${currentTable}-total`).textContent = total.toFixed(2);
+
+            if (document.getElementById('modalTotal')) {
+                document.getElementById('modalTotal').textContent = total.toFixed(2);
+            }
+            calculateDue();
+        }
+
+        function calculateDue() {
+            const amountPaidInput = document.getElementById('amountPaid');
+            const dueDisplay = document.getElementById('dueDisplay');
+            const dueAmount  = document.getElementById('dueAmount');
+            if (!amountPaidInput || !dueDisplay) return;
+
+            const amountPaid = parseFloat(amountPaidInput.value) || 0;
+
+            let subtotal = 0;
+            Object.values(cart).forEach(item => { subtotal += item.price * item.quantity; });
+            
+            // Use modal discount if available
+            const modalDiscountInput = document.getElementById('modalDiscountValue');
+            let discountAmount = 0;
+            if (modalDiscountInput) {
+                const discountValue = parseFloat(modalDiscountInput.value) || 0;
+                if (modalDiscountType === 'percentage') {
+                    discountAmount = (subtotal * discountValue) / 100;
+                } else {
+                    discountAmount = discountValue;
+                }
+            } else {
+                // Fallback to cart discount
+                const discountPercent = parseFloat(document.getElementById('discountPercent').value) || 0;
+                discountAmount = (subtotal * discountPercent) / 100;
+            }
+            
+            const taxable = subtotal - discountAmount;
+            const gst     = calcGSTAmounts(taxable);
+            // Use same rounding as backend to avoid mismatch
+            const total   = parseFloat((taxable + gst.total).toFixed(2));
+
+            const due = Math.max(0, parseFloat((total - amountPaid).toFixed(2)));
+            console.log(`[calculateDue] amountPaid=${amountPaid}, total=${total}, due=${due}`);
+            if (amountPaid > 0 && amountPaid < total) {
+                dueDisplay.style.display = 'block';
+                dueAmount.textContent = due.toFixed(2);
+            } else {
+                dueDisplay.style.display = 'none';
+            }
+        }
+
+        // Person/Table switching
+        document.querySelectorAll('.table-tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                document.querySelectorAll('.table-tab').forEach(t => t.classList.remove('active'));
+                this.classList.add('active');
+                currentTable = parseInt(this.dataset.table);
+                cart = carts[currentTable]; // Switch to the selected person's cart
+                refreshProductDisplay(); // Update all product cards for this cart
+                updateTotals();
+            });
+        });
+
+        // Refresh product display when switching carts
+        function refreshProductDisplay() {
+            document.querySelectorAll('.product-card').forEach(card => {
+                const id = card.dataset.id;
+                const item = cart[id];
+                updateProductCardDisplay(card, item);
+            });
+        }
+
+        // Print modal
+        async function openPrintModal() {
+            if (Object.keys(cart).length === 0) {
+                alert('Please add items to cart first!');
+                return;
+            }
+
+            // CRITICAL: Refresh GST rates FIRST before any calculation
+            console.log('🔄 [MODAL] Starting GST rate refresh...');
+            await refreshGSTRates();
+            console.log(`✅ [MODAL] GST rates after refresh: CGST=${GST_CGST}%, SGST=${GST_SGST}%, Enabled=${GST_ENABLED}`);
+            
+            // Wait a tiny moment to ensure rates are set
+            await new Promise(resolve => setTimeout(resolve, 50));
+            
+            // Now update all totals with fresh rates
+            updateTotals();
+            
+            console.log(`📊 [AFTER UPDATE] Header shows: ${document.getElementById('header-total').textContent}`);
+
+            // Update modal cart items
+            let cartHTML = '';
+            Object.values(cart).forEach(item => {
+                const itemTotal = item.price * item.quantity;
+                // Format quantity based on unit type
+                const qtyDisplay = item.unit === 'kg' ? 
+                    item.quantity.toFixed(1) + ' ' + item.unit : 
+                    Math.floor(item.quantity) + ' ' + (item.unit || 'piece');
+                cartHTML += `
+                    <div class="cart-item">
+                        <span>${item.name} × ${qtyDisplay}</span>
+                        <span>₹${itemTotal.toFixed(2)}</span>
+                    </div>
+                `;
+            });
+            document.getElementById('modalCartItems').innerHTML = cartHTML;
+
+            // Initialize modal discount from cart discount if needed
+            const cartDiscountPercent = parseFloat(document.getElementById('discountPercent').value) || 0;
+            if (cartDiscountPercent > 0 && !document.getElementById('modalDiscountValue').value) {
+                document.getElementById('modalDiscountValue').value = cartDiscountPercent;
+                modalDiscountType = 'percentage';
+                setDiscountType('percentage');
+            }
+
+            // Update modal totals with discount
+            updateModalTotals();
+            
+            // Update amount paid field's change listener to recalculate with fresh rates
+            const amountPaidField = document.getElementById('amountPaid');
+            if (amountPaidField) {
+                // Remove old listeners and add new one
+                amountPaidField.onchange = function() {
+                    calculateDue();
+                };
+                // Trigger initial calculation
+                calculateDue();
+            }
+
+            // Show GST breakdown inside modal if applicable
+            let subtotal = 0;
+            Object.values(cart).forEach(item => { subtotal += item.price * item.quantity; });
+            
+            // Get discount from modal
+            const modalDiscountInput = document.getElementById('modalDiscountValue');
+            let discountAmount = 0;
+            if (modalDiscountInput) {
+                const discountValue = parseFloat(modalDiscountInput.value) || 0;
+                if (modalDiscountType === 'percentage') {
+                    discountAmount = (subtotal * discountValue) / 100;
+                } else {
+                    discountAmount = discountValue;
+                }
+            }
+            
+            const taxable = subtotal - discountAmount;
+            const gst = calcGSTAmounts(taxable);
+
+            let gstInfoEl = document.getElementById('modalGSTInfo');
+            if (!gstInfoEl) {
+                gstInfoEl = document.createElement('div');
+                gstInfoEl.id = 'modalGSTInfo';
+                gstInfoEl.style.cssText = 'font-size:12px;color:#555;margin-top:4px;';
+                const cartTotalEl = document.querySelector('.cart-total');
+                if (cartTotalEl) cartTotalEl.insertAdjacentElement('afterend', gstInfoEl);
+            }
+            if (gst.total > 0) {
+                let gstHTML = `<div style="border-top:1px solid #eee;padding-top:4px;margin-top:4px;">`;
+                if (gst.cgst > 0) gstHTML += `<div style="display:flex;justify-content:space-between;"><span>CGST (${GST_CGST}%)</span><span>₹${gst.cgst.toFixed(2)}</span></div>`;
+                if (gst.sgst > 0) gstHTML += `<div style="display:flex;justify-content:space-between;"><span>SGST (${GST_SGST}%)</span><span>₹${gst.sgst.toFixed(2)}</span></div>`;
+                if (gst.igst > 0) gstHTML += `<div style="display:flex;justify-content:space-between;"><span>IGST (${GST_IGST}%)</span><span>₹${gst.igst.toFixed(2)}</span></div>`;
+                gstHTML += `<div style="display:flex;justify-content:space-between;font-weight:600;color:#10b981;"><span>GST Total</span><span>₹${gst.total.toFixed(2)}</span></div></div>`;
+                gstInfoEl.innerHTML = gstHTML;
+            } else {
+                gstInfoEl.innerHTML = '';
+            }
+
+            document.getElementById('printModal').classList.add('active');
+        }
+
+        function closePrintModal() {
+            document.getElementById('printModal').classList.remove('active');
+        }
+
+        // Cake weight modal functions
+        let currentCakeProduct = null;
+
+        function openCakeWeightModal(element, id, name, stock, unit, halfKgPrice, oneKgPrice, pastryPrice, pastryGrams) {
+            console.log(`📝 Opening cake modal for: ${name}`, { halfKgPrice, oneKgPrice, pastryPrice, pastryGrams });
+            
+            // Store the product element and details
+            currentCakeProduct = {
+                element: element,
+                id: id,
+                name: name,
+                stock: stock,
+                unit: unit,
+                halfKgPrice: halfKgPrice,
+                oneKgPrice: oneKgPrice,
+                pastryPrice: pastryPrice || 0,
+                pastryGrams: pastryGrams || 100
+            };
+
+            // Update modal content
+            document.getElementById('cakeProductName').textContent = name;
+            document.getElementById('halfKgPriceDisplay').textContent = halfKgPrice.toFixed(2);
+            document.getElementById('fullKgPriceDisplay').textContent = oneKgPrice.toFixed(2);
+            document.getElementById('pastryPriceDisplay').textContent = (pastryPrice || 0).toFixed(2);
+            document.getElementById('pastryGramsDisplay').textContent = (pastryGrams || 100);
+
+            // Show/hide options based on available prices
+            const halfKgOption = document.getElementById('halfKgOption');
+            const fullKgOption = document.getElementById('fullKgOption');
+            const pastryOption = document.getElementById('pastryOption');
+            
+            if (halfKgPrice > 0) {
+                halfKgOption.style.display = 'block';
+            } else {
+                halfKgOption.style.display = 'none';
+            }
+
+            if (oneKgPrice > 0) {
+                fullKgOption.style.display = 'block';
+            } else {
+                fullKgOption.style.display = 'none';
+            }
+
+            if (pastryPrice > 0) {
+                pastryOption.style.display = 'block';
+            } else {
+                pastryOption.style.display = 'none';
+            }
+
+            // Show modal
+            document.getElementById('cakeWeightModal').classList.add('active');
+        }
+
+        function closeCakeWeightModal() {
+            document.getElementById('cakeWeightModal').classList.remove('active');
+            currentCakeProduct = null;
+        }
+
+        // Close modal when clicking outside
+        document.getElementById('cakeWeightModal')?.addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeCakeWeightModal();
+            }
+        });
+
+        function selectCakeWeight(weightType) {
+            if (!currentCakeProduct) {
+                console.error('No cake product selected');
+                return;
+            }
+
+            const { element, id, name, stock, unit } = currentCakeProduct;
+            let totalPrice, price, quantity, weightLabel, displayUnit;
+
+            if (weightType === 'half') {
+                totalPrice = parseFloat(currentCakeProduct.halfKgPrice) || 0;
+                quantity = 0.5;
+                weightLabel = '½kg';
+                displayUnit = 'kg';
+                // Calculate per-kg rate: if half kg costs ₹200, then ₹200/0.5 = ₹400 per kg
+                price = totalPrice / quantity;
+            } else if (weightType === 'pastry') {
+                totalPrice = parseFloat(currentCakeProduct.pastryPrice) || 0;
+                quantity = 1; // 1 piece of pastry
+                const pastryGrams = currentCakeProduct.pastryGrams || 100;
+                weightLabel = `Pastry(${pastryGrams}g)`;
+                displayUnit = 'piece';
+                // Price is per piece
+                price = totalPrice;
+            } else {
+                totalPrice = parseFloat(currentCakeProduct.oneKgPrice) || 0;
+                quantity = 1;
+                weightLabel = '1kg';
+                displayUnit = 'kg';
+                // Calculate per-kg rate: if one kg costs ₹400, then ₹400/1 = ₹400 per kg
+                price = totalPrice / quantity;
+            }
+
+            // Validate price
+            if (totalPrice <= 0 || price <= 0) {
+                alert(`Price not set for ${weightLabel}. Please update product pricing.`);
+                console.error(`Invalid price for ${name} (${weightLabel}):`, totalPrice);
+                return;
+            }
+
+            console.log(`🎂 Adding ${name} - ${weightLabel} @ ₹${price.toFixed(2)}/${displayUnit} × ${quantity} ${displayUnit} = ₹${totalPrice.toFixed(2)} total`);
+
+            // Add to cart or update existing
+            if (!cart[id]) {
+                cart[id] = {
+                    id: id,
+                    name: `${name} (${weightLabel})`,
+                    price: price,
+                    quantity: quantity,
+                    stock: stock,
+                    unit: displayUnit,
+                    isCake: true,
+                    baseWeight: quantity
+                };
+                updateProductCardDisplay(element, cart[id]);
+                console.log(`✅ Added to cart:`, cart[id], `Total: ₹${(price * quantity).toFixed(2)}`);
+            } else {
+                // If already in cart, add another unit of the selected weight
+                cart[id].quantity += quantity;
+                const displayQty = displayUnit === 'kg' ? cart[id].quantity.toFixed(1) : Math.floor(cart[id].quantity);
+                element.querySelector('.qty-display').textContent = displayQty;
+                const newTotal = cart[id].price * cart[id].quantity;
+                console.log(`✅ Updated quantity to ${cart[id].quantity} kg, Total: ₹${newTotal.toFixed(2)}`);
+            }
+
+            updateTotals();
+            closeCakeWeightModal();
+        }
+
+        // Billing type tabs
+        document.querySelectorAll('.billing-type-tab').forEach(tab => {
+            tab.addEventListener('click', async function() {
+                document.querySelectorAll('.billing-type-tab').forEach(t => {
+                    t.classList.remove('active');
+                    t.innerHTML = t.innerHTML.replace('bi-circle-fill', 'bi-circle');
+                });
+                this.classList.add('active');
+                this.innerHTML = this.innerHTML.replace('bi-circle', 'bi-circle-fill');
+                
+                // Show/hide fields based on billing type
+                const billingType = this.dataset.type;
+                const advanceFields = document.getElementById('advanceFields');
+                const basicFields = document.getElementById('basicFields');
+                
+                if (billingType === 'advance') {
+                    advanceFields.style.display = 'block';
+                    basicFields.style.display = 'none';
+                } else {
+                    advanceFields.style.display = 'none';
+                    basicFields.style.display = 'block';
+                }
+                
+                // Refresh GST rates when switching to ADVANCE mode
+                if (billingType === 'advance') {
+                    console.log('🔄 Switching to ADVANCE mode - refreshing GST rates...');
+                    await refreshGSTRates();
+                }
+                
+                // Refresh GST-inclusive totals when switching billing mode
+                updateTotals();
+            });
+        });
+
+        // Refresh totals when invoice type (B2B/B2C) or GSTIN changes
+        const invoiceTypeEl = document.getElementById('invoiceType');
+        const customerGSTINEl = document.getElementById('customerGSTIN');
+        if (invoiceTypeEl) {
+            invoiceTypeEl.addEventListener('change', async function() {
+                console.log('🔄 Invoice type changed to: ' + this.value);
+                if (this.value === 'B2B') {
+                    await refreshGSTRates();
+                }
+                updateTotals();
+            });
+        }
+        if (customerGSTINEl) customerGSTINEl.addEventListener('input', updateTotals);
+
+        // Payment buttons
+        document.querySelectorAll('.payment-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.payment-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                document.getElementById('paymentMethod').value = this.dataset.payment;
+            });
+        });
+
+        // Submit bill
+        async function submitBill(event) {
+            event.preventDefault();
+            
+            console.log('Submit bill function called');
+            console.log('Cart:', cart);
+
+            if (Object.keys(cart).length === 0) {
+                alert('Please add items to cart first!');
+                return;
+            }
+
+            const formData = new FormData(event.target);
+            const billingTypeTab = document.querySelector('.billing-type-tab.active');
+            console.log('Billing type tab:', billingTypeTab);
+            
+            if (!billingTypeTab) {
+                console.error('No billing type tab found!');
+                alert('Error: Billing type not selected. Please refresh the page.');
+                return;
+            }
+            
+            const billingType = billingTypeTab.dataset.type;
+            console.log('Billing type:', billingType);
+            console.log('Billing type:', billingType);
+            
+            // Validate advanced fields if in advance mode
+            if (billingType === 'advance') {
+                const customerName = formData.get('customerNameAdvance');
+                const customerPhone = formData.get('customerPhoneAdvance');
+                const invoiceType = formData.get('invoiceType');
+                
+                console.log('Advanced mode - Name:', customerName, 'Phone:', customerPhone);
+                
+                if (!customerName || customerName.trim() === '') {
+                    alert('Customer name is required for advanced billing!');
+                    return;
+                }
+                
+                if (!customerPhone || customerPhone.trim() === '') {
+                    alert('Mobile number is required for advanced billing!');
+                    return;
+                }
+                
+                // Validate GSTIN if B2B
+                if (invoiceType === 'B2B') {
+                    const gstin = formData.get('customerGSTIN');
+                    if (!gstin || gstin.trim() === '') {
+                        const confirmProceed = confirm('GSTIN is recommended for B2B invoices. Do you want to proceed without GSTIN?');
+                        if (!confirmProceed) {
+                            return;
+                        }
+                    }
+                }
+            }
+            
+            // Prepare cart items
+            const items = Object.values(cart).map(item => ({
+                productId: item.id,
+                quantity: item.quantity,
+                price: item.price,
+                isCake: item.isCake || false,
+                discount: 0,
+                discountType: 'fixed'
+            }));
+            
+            console.log('Items to submit:', items);
+
+            // Get customer details based on billing type
+            let customerName = '';
+            let customerPhone = '';
+            let customerAddress = '';
+            
+            if (billingType === 'advance') {
+                customerName = formData.get('customerNameAdvance') || '';
+                customerPhone = formData.get('customerPhoneAdvance') || '';
+                customerAddress = formData.get('customerAddressAdvance') || '';
+            } else {
+                customerName = formData.get('customerName') || '';
+                customerPhone = formData.get('customerPhone') || '';
+                customerAddress = formData.get('customerAddress') || '';
+            }
+
+            // Get discount values from modal
+            const modalDiscountInput = document.getElementById('modalDiscountValue');
+            const discountValue = modalDiscountInput ? (parseFloat(modalDiscountInput.value) || 0) : 0;
+            const discountTypeValue = document.getElementById('billDiscountType').value || 'percentage';
+
+            const billData = {
+                items: JSON.stringify(items),
+                discount: discountValue,
+                discountType: discountTypeValue,
+                customerName: customerName,
+                customerPhone: customerPhone,
+                customerAddress: customerAddress,
+                paymentMethod: formData.get('paymentMethod') || 'cash',
+                amountPaid: formData.get('amountPaid') || '',
+                customerType: billingType === 'advance' ? (formData.get('invoiceType') || 'B2C') : 'B2C',
+                billingType: billingType
+            };
+            
+            console.log('Bill data to submit:', billData);
+            console.log('Bill data to submit:', billData);
+            
+            // Add B2B fields if in advance mode
+            if (billingType === 'advance') {
+                billData.customerGSTIN = formData.get('customerGSTIN') || '';
+                billData.billingAddress = formData.get('billingAddress') || '';
+                billData.stateCode = formData.get('stateCode') || '';
+                billData.hsnCode = formData.get('hsnCode') || '';
+                billData.invoiceType = formData.get('invoiceType') || 'B2C';
+            }
+
+            // Show loading
+            const submitBtn = event.target.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Creating Bill...';
+            submitBtn.disabled = true;
+            
+            console.log('Sending request to /sales/create...');
+            console.log('Bill data being sent:', billData);
+            
+            // Refresh GST rates one more time before submission to ensure sync
+            await refreshGSTRates();
+
+            // Submit to server
+            fetch('/sales/create', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(billData)
+            })
+            .then(response => {
+                console.log('Response status:', response.status);
+                return response.json();
+            })
+            .then(data => {
+                console.log('Response data:', data);
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+
+                if (data.success) {
+                    // Close modal
+                    closePrintModal();
+                    
+                    // Show success message
+                    alert(`Bill ${data.billNumber} created successfully!`);
+                    
+                    // Auto-open print window
+                    const printWindow = window.open(`/bill/print/${data.billId}`, '_blank', 'width=800,height=600');
+                    
+                    // Wait a moment then auto-print
+                    if (printWindow) {
+                        setTimeout(() => {
+                            printWindow.print();
+                        }, 1000);
+                    }
+                    
+                    // Reset current person's cart
+                    carts[currentTable] = {};
+                    cart = carts[currentTable];
+                    
+                    // Update product card displays
+                    document.querySelectorAll('.product-card').forEach(card => {
+                        card.classList.remove('in-cart');
+                        card.querySelector('.quantity-controls').style.display = 'none';
+                        card.querySelector('.remove-btn').style.display = 'none';
+                        card.querySelector('.qty-display').textContent = '0';
+                    });
+                    
+                    // Update totals
+                    updateTotals();
+                    
+                    // Clear form
+                    event.target.reset();
+                    
+                    // Reset discount
+                    document.getElementById('discountPercent').value = '0';
+                    
+                    // Reset billing type to basic
+                    document.querySelectorAll('.billing-type-tab').forEach(t => {
+                        t.classList.remove('active');
+                        t.innerHTML = t.innerHTML.replace('bi-circle-fill', 'bi-circle');
+                    });
+                    document.querySelector('.billing-type-tab[data-type="basic"]').classList.add('active');
+                    document.querySelector('.billing-type-tab[data-type="basic"]').innerHTML = document.querySelector('.billing-type-tab[data-type="basic"]').innerHTML.replace('bi-circle', 'bi-circle-fill');
+                    document.getElementById('advanceFields').style.display = 'none';
+                    document.getElementById('basicFields').style.display = 'block';
+                } else {
+                    alert('Error: ' + (data.error || data.message || 'Failed to create bill'));
+                }
+            })
+            .catch(error => {
+                console.error('Fetch error:', error);
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+                alert('An error occurred while creating the bill. Please try again.');
+            });
+        }
+
+        // Menu dropdown toggle for employees
+        const menuToggleBtn = document.getElementById('menuToggleBtn');
+        const menuDropdown = document.getElementById('menuDropdown');
+        
+        if (menuToggleBtn && menuDropdown) {
+            menuToggleBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                menuDropdown.classList.toggle('show');
+            });
+
+            // Close dropdown when clicking outside
+            document.addEventListener('click', function(e) {
+                if (menuDropdown.classList.contains('show') && 
+                    !menuToggleBtn.contains(e.target) && 
+                    !menuDropdown.contains(e.target)) {
+                    menuDropdown.classList.remove('show');
+                }
+            });
+        }
+
+        // Menu dropdown toggle for admin
+        const adminMenuToggleBtn = document.getElementById('adminMenuToggleBtn');
+        const adminMenuDropdown = document.getElementById('adminMenuDropdown');
+        
+        if (adminMenuToggleBtn && adminMenuDropdown) {
+            adminMenuToggleBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                adminMenuDropdown.classList.toggle('show');
+            });
+
+            // Close dropdown when clicking outside
+            document.addEventListener('click', function(e) {
+                if (adminMenuDropdown.classList.contains('show') && 
+                    !adminMenuToggleBtn.contains(e.target) && 
+                    !adminMenuDropdown.contains(e.target)) {
+                    adminMenuDropdown.classList.remove('show');
+                }
+            });
+        }
+
+        // Modal Discount Type Management
+        let modalDiscountType = 'percentage'; // 'percentage' or 'fixed'
+
+        function setDiscountType(type) {
+            modalDiscountType = type;
+            const percentBtn = document.getElementById('discountPercentBtn');
+            const rsBtn = document.getElementById('discountRsBtn');
+            const displayType = document.getElementById('discountDisplayType');
+            const helpText = document.getElementById('discountHelp');
+            const discountInput = document.getElementById('modalDiscountValue');
+
+            if (type === 'percentage') {
+                percentBtn.style.cssText = 'flex: 1; background: #6366f1; color: white; border: 2px solid #6366f1;';
+                rsBtn.style.cssText = 'flex: 1; border: 2px solid #ddd; background: white; color: #333;';
+                displayType.textContent = '%';
+                helpText.textContent = 'Enter percentage (0-100%)';
+                discountInput.max = '100';
+                discountInput.placeholder = 'Enter discount percentage';
+            } else {
+                percentBtn.style.cssText = 'flex: 1; border: 2px solid #ddd; background: white; color: #333;';
+                rsBtn.style.cssText = 'flex: 1; background: #6366f1; color: white; border: 2px solid #6366f1;';
+                displayType.textContent = '₹';
+                helpText.textContent = 'Enter amount in rupees';
+                discountInput.max = '999999';
+                discountInput.placeholder = 'Enter discount amount';
+            }
+
+            // Reset discount value when switching
+            discountInput.value = '0';
+            updateModalTotals();
+        }
+
+        function updateModalTotals() {
+            const discountInput = document.getElementById('modalDiscountValue');
+            const discountDisplayDiv = document.getElementById('modalDiscountDisplay');
+            const discountLabel = document.getElementById('modalDiscountLabel');
+            const discountAmountSpan = document.getElementById('modalDiscountAmount');
+            const modalSubtotalSpan = document.getElementById('modalSubtotal');
+            const modalTotalSpan = document.getElementById('modalTotal');
+            const helpText = document.getElementById('discountHelp');
+
+            // Calculate subtotal
+            let subtotal = 0;
+            Object.values(cart).forEach(item => { subtotal += item.price * item.quantity; });
+
+            // Get discount value
+            let discountValue = parseFloat(discountInput.value) || 0;
+            let discountAmount = 0;
+
+            // Validation and calculation based on type
+            if (modalDiscountType === 'percentage') {
+                if (discountValue > 100) {
+                    discountValue = 100;
+                    discountInput.value = 100;
+                    helpText.textContent = '⚠️ Maximum 100% discount';
+                    helpText.style.color = '#f59e0b';
+                    setTimeout(() => {
+                        helpText.textContent = 'Enter percentage (0-100%)';
+                        helpText.style.color = '#6c757d';
+                    }, 2000);
+                } else if (discountValue < 0) {
+                    discountValue = 0;
+                    discountInput.value = 0;
+                }
+                discountAmount = (subtotal * discountValue) / 100;
+                discountLabel.textContent = discountValue + '%';
+            } else {
+                if (discountValue > subtotal) {
+                    discountValue = subtotal;
+                    discountInput.value = subtotal.toFixed(2);
+                    helpText.textContent = '⚠️ Discount cannot exceed subtotal';
+                    helpText.style.color = '#f59e0b';
+                    setTimeout(() => {
+                        helpText.textContent = 'Enter amount in rupees';
+                        helpText.style.color = '#6c757d';
+                    }, 2000);
+                } else if (discountValue < 0) {
+                    discountValue = 0;
+                    discountInput.value = 0;
+                }
+                discountAmount = discountValue;
+                discountLabel.textContent = '₹' + discountValue.toFixed(2);
+            }
+
+            // Display or hide discount section
+            if (discountAmount > 0) {
+                discountDisplayDiv.style.display = 'block';
+                discountAmountSpan.textContent = discountAmount.toFixed(2);
+            } else {
+                discountDisplayDiv.style.display = 'none';
+            }
+
+            // Calculate taxable and GST
+            const taxable = subtotal - discountAmount;
+            const gst = calcGSTAmounts(taxable);
+            const total = parseFloat((taxable + gst.total).toFixed(2));
+
+            // Update display
+            modalSubtotalSpan.textContent = subtotal.toFixed(2);
+            modalTotalSpan.textContent = total.toFixed(2);
+
+            // Update hidden fields for form submission
+            document.getElementById('billDiscount').value = discountValue;
+            document.getElementById('billDiscountType').value = modalDiscountType;
+
+            // Recalculate due if amount paid is entered
+            calculateDue();
+        }
+    </script>
+</body>
+</html>

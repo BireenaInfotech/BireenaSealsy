@@ -103,7 +103,12 @@
                                         <div class="col-md-6 mb-3">
                                             <label class="form-label">PASTRY (100gms) Price (₹)</label>
                                             <input type="number" class="form-control" name="pastryPrice" id="pastryPrice" step="0.01" min="0" placeholder="0.00">
-                                            <small class="text-muted">Optional - Price for 100g pastry piece</small>
+                                            <small class="text-muted">Optional - Price for pastry piece</small>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label">PASTRY Grams</label>
+                                            <input type="number" class="form-control" name="pastryGrams" id="pastryGrams" step="1" min="0" placeholder="100" value="100">
+                                            <small class="text-muted">Weight in grams (default: 100g)</small>
                                         </div>
                                     </div>
                                     
@@ -122,17 +127,17 @@
                                 <div class="card-body">
                                     <div class="row">
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">Initial Stock Quantity *</label>
-                                            <input type="number" class="form-control" name="stock" id="stockInput" min="0" required>
+                                            <label class="form-label">Initial Stock Quantity</label>
+                                            <input type="number" class="form-control" name="stock" id="stockInput" min="0" value="0" readonly disabled style="background-color: #f8f9fa;">
                                             
-                                            <!-- Toggle for disabling stock tracking -->
+                                            <!-- Toggle for enabling stock tracking -->
                                             <div class="form-check form-switch mt-2">
-                                                <input class="form-check-input" type="checkbox" id="disableStockToggle" style="cursor: pointer;">
+                                                <input class="form-check-input" type="checkbox" id="disableStockToggle" style="cursor: pointer;" checked>
                                                 <label class="form-check-label" for="disableStockToggle" style="cursor: pointer; font-size: 0.9rem;">
                                                     Disable Stock Tracking (Made to Order)
                                                 </label>
                                             </div>
-                                            <small class="text-info" id="stockStatusNote" style="display: none;">
+                                            <small class="text-info" id="stockStatusNote" style="display: block;">
                                                 <i class="bi bi-info-circle"></i> Stock tracking disabled - can sell unlimited quantity
                                             </small>
                                         </div>
@@ -493,20 +498,25 @@
                         '<div class="col-md-6 mb-2">' +
                             '<label class="form-label fw-semibold">PASTRY (100gms) Price (₹)</label>' +
                             '<input type="number" class="form-control" data-field="pastryPrice" step="0.01" min="0" placeholder="0.00">' +
-                            '<small class="text-muted">Optional - Price for 100g pastry</small>' +
+                            '<small class="text-muted">Optional - Price for pastry</small>' +
+                        '</div>' +
+                        '<div class="col-md-6 mb-2">' +
+                            '<label class="form-label fw-semibold">PASTRY Grams</label>' +
+                            '<input type="number" class="form-control" data-field="pastryGrams" step="1" min="0" placeholder="100" value="100">' +
+                            '<small class="text-muted">Weight in grams (default: 100g)</small>' +
                         '</div>' +
                     '</div>' +
 
                     '<!-- Stock -->' +
                     '<div class="row mb-2">' +
                         '<div class="col-md-4 mb-2">' +
-                            '<label class="form-label fw-semibold">Stock Qty *</label>' +
-                            '<input type="number" class="form-control" data-field="stock" min="0" value="0" required>' +
+                            '<label class="form-label fw-semibold">Stock Qty</label>' +
+                            '<input type="number" class="form-control" data-field="stock" min="0" value="0" readonly disabled style="background-color:#f8f9fa;">' +
                             '<div class="form-check form-switch mt-1">' +
-                                '<input class="form-check-input" type="checkbox" data-field="disableStockToggle">' +
+                                '<input class="form-check-input" type="checkbox" data-field="disableStockToggle" checked>' +
                                 '<label class="form-check-label" style="font-size:0.85rem;">Disable Stock Tracking</label>' +
                             '</div>' +
-                            '<input type="hidden" data-field="trackStock" value="true">' +
+                            '<input type="hidden" data-field="trackStock" value="false">' +
                         '</div>' +
                         '<div class="col-md-4 mb-2">' +
                             '<label class="form-label fw-semibold">Unit *</label>' +
@@ -624,6 +634,12 @@
                             profitContainer.style.display = 'none';
                         }
                         
+                        // Auto-select kg unit for cakes
+                        if (unitSelect) {
+                            unitSelect.value = 'kg';
+                            unitSelect.dispatchEvent(new Event('change'));
+                        }
+                        
                         // Auto-enable stock tracking toggle
                         if (disableStockToggle && !disableStockToggle.checked) {
                             disableStockToggle.checked = true;
@@ -679,6 +695,32 @@
             // Initialize selling price as required by default
             if (sellingPriceInput) {
                 sellingPriceInput.setAttribute('required', 'required');
+            }
+
+            // 🎯 COPY CATEGORY FROM PREVIOUS PRODUCT (Smart Suggestion)
+            var existingCards = container.querySelectorAll('.card');
+            if (existingCards.length > 0) {
+                var lastCard = existingCards[existingCards.length - 1];
+                var lastCategoryInput = lastCard.querySelector('[data-field="category"]');
+                var newCategoryInput = card.querySelector('[data-field="category"]');
+                
+                if (lastCategoryInput && newCategoryInput && lastCategoryInput.value.trim()) {
+                    // Copy the category from last product
+                    newCategoryInput.value = lastCategoryInput.value.trim();
+                    
+                    // Trigger the category change event to show/hide cake pricing if needed
+                    var changeEvent = new Event('input');
+                    newCategoryInput.dispatchEvent(changeEvent);
+                    
+                    // Add visual indicator
+                    newCategoryInput.style.borderColor = '#10b981';
+                    newCategoryInput.style.borderWidth = '2px';
+                    
+                    setTimeout(function() {
+                        newCategoryInput.style.borderColor = '';
+                        newCategoryInput.style.borderWidth = '';
+                    }, 2000);
+                }
             }
 
             container.appendChild(card);
@@ -803,6 +845,7 @@
                 var halfKgPriceInput = card.querySelector('[data-field="halfKgPrice"]');
                 var oneKgPriceInput = card.querySelector('[data-field="oneKgPrice"]');
                 var pastryPriceInput = card.querySelector('[data-field="pastryPrice"]');
+                var pastryGramsInput = card.querySelector('[data-field="pastryGrams"]');
                 var gramAmountInput = card.querySelector('[data-field="gramAmount"]');
                 var product = {
                     name: (card.querySelector('[data-field="name"]').value || '').trim(),
@@ -812,6 +855,7 @@
                     halfKgPrice: halfKgPriceInput ? parseFloat(halfKgPriceInput.value) || 0 : 0,
                     oneKgPrice: oneKgPriceInput ? parseFloat(oneKgPriceInput.value) || 0 : 0,
                     pastryPrice: pastryPriceInput ? parseFloat(pastryPriceInput.value) || 0 : 0,
+                    pastryGrams: pastryGramsInput ? parseInt(pastryGramsInput.value) || 100 : 100,
                     stock: parseInt(card.querySelector('[data-field="stock"]').value) || 0,
                     unit: card.querySelector('[data-field="unit"]').value,
                     gramAmount: gramAmountInput ? parseInt(gramAmountInput.value) || 0 : 0,
@@ -1310,6 +1354,12 @@
                             }
                             if (profitContainer) {
                                 profitContainer.style.display = 'none';
+                            }
+                            
+                            // Auto-select kg unit for cakes
+                            if (unitSelect) {
+                                unitSelect.value = 'kg';
+                                unitSelect.dispatchEvent(new Event('change'));
                             }
                             
                             // Suggest cake configuration
