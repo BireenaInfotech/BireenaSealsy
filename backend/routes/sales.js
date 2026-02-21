@@ -365,8 +365,11 @@ router.post('/create', isAuthenticated, async (req, res) => {
         // Security log
         console.log(`[PAYMENT] User: ${req.session.user.username}, Bill: BILL-XXXX, Amount: ${total}, Paid: ${paidAmount}, Due: ${due}`);
 
-        // Generate bill number
-        const lastSale = await Sale.findOne().sort({ createdAt: -1 });
+        // Get adminId for bill number sequence
+        const adminId = getAdminId(req);
+
+        // Generate bill number - UNIQUE PER ADMIN (each shop has own sequence)
+        const lastSale = await Sale.findOne({ adminId }).sort({ createdAt: -1 });
         let billNumber = 'BILL-0001';
         if (lastSale) {
             const lastNumber = parseInt(lastSale.billNumber.split('-')[1]);
@@ -374,7 +377,6 @@ router.post('/create', isAuthenticated, async (req, res) => {
         }
 
         // Create sale
-        const adminId = getAdminId(req);
         const sale = new Sale({
             billNumber,
             items: saleItems,
