@@ -80,7 +80,7 @@ const validateProduct = [
     body('unit')
         .optional({ checkFalsy: true })
         .trim()
-        .isIn(['kg', 'g', 'l', 'ml', 'pcs', 'dozen', 'box'])
+        .isIn(['kg', 'g', 'l', 'ml', 'pcs', 'dozen', 'box', 'plate'])
         .withMessage('Invalid unit type'),
     body('gstRate')
         .optional({ checkFalsy: true })
