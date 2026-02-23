@@ -212,6 +212,8 @@
     border-right: 2px solid #E5E7EB;
     overflow-y: auto;
     overflow-x: hidden;
+    max-height: calc(100vh - 60px);
+    height: 100%;
     padding-bottom: 20px;
     scrollbar-width: thin;
     scrollbar-color: #9CA3AF #F3F4F6;
